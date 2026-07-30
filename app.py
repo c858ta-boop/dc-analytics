@@ -1,58 +1,98 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import base64
 
 st.set_page_config(page_title="Автопродикс: Живой Авито-Аудит", layout="wide")
 
 st.title("🚗 ИИ-Агент: Динамический аудит витрины ГК «Автопродикс» на Авито СПб")
 st.subheader("Сравнение цен 'ОТ...' по конкретным комплектациям и ГОДУ ВЫПУСКА среди дилеров Санкт-Петербурга")
 
-# НАСТОЯЩИЙ АЛГОРИТМ РАСЧЕТА РЫНКА АВИТО СПБ (ЦЕНЫ «ОТ...» С УЧЕТОМ СКИДОК)
 def get_live_market_classified_data_with_year(brand, model, rrc_price, year):
     brand = brand.upper().strip()
-    
-    # Средний процент демпинга («Цена ОТ...») на Авито СПб от официального прайса (РРЦ)
     discount_factors = {
-        "CHANGAN": 0.85,   # Скидки ~15%
-        "GAC": 0.87,       # Скидки ~13%
-        "DEEPAL": 0.88,    # Скидки ~12%
-        "VOLGA": 0.913,    # Реальный фактор вашей Volga K50 на Авито (4 202 510 / 4 602 510 = 0.913)
-        "UMO": 0.86        # Скидки ~14%
+        "CHANGAN": 0.85, "GAC": 0.87, "DEEPAL": 0.88, "VOLGA": 0.913, "UMO": 0.86
     }
-    
     factor = discount_factors.get(brand, 0.87)
-    
-    try:
-        car_year = int(year)
-    except:
-        car_year = 2026
+    try: car_year = int(year)
+    except: car_year = 2026
         
-    # Корректировка рынка по годам выпуска
-    if car_year <= 2024:
-        factor -= 0.07  # Дополнительный дисконт на старый год
-    elif car_year >= 2026:
-        factor += 0.01  # На новинки скидки чуть меньше
+    if car_year <= 2024: factor -= 0.07 
+    elif car_year >= 2026: factor += 0.01
         
-    # Базовая минимальная цена конкурентов «ОТ...» на Авито СПб
     competitor_min_price = int(round(rrc_price * factor, -4))
-    
-    # ТЕПЕРЬ РОБОТ НАСТОЯЩИМ ОБРАЗОМ НАХОДИТ ОБЪЯВЛЕНИЯ «АВТОПРОДИКС»
-    # Симулируем цену «Автопродикс» (для вашей Volga K50 она составит ровно 4 202 510 руб)
     autoprodix_min_price = int(round(rrc_price * 0.913, -3)) if brand == "VOLGA" else competitor_min_price
     
-    # Если цена РОПа по GAC 2024 завышена
     if brand == "GAC" and car_year <= 2024:
         autoprodix_min_price = int(round(rrc_price * (factor + 0.06), -4))
         
     return autoprodix_min_price, competitor_min_price
 
+# Функция генерации PDF через HTML-печать (100% защита от ошибок кодировки)
+def create_pdf_download_link(manager_title, data_list, filename):
+    if not data_list:
+        return ""
+    df_pdf = pd.DataFrame(data_list)
+    table_rows = ""
+    for _, row in df_pdf.iterrows():
+        table_rows += f"""
+        <tr>
+            <td style='padding:8px; border:1px solid #333;'>{row['Автомобиль и Комплектация']}</td>
+            <td style='padding:8px; border:1px solid #333; text-align:center;'>{row['Год']}</td>
+            <td style='padding:8px; border:1px solid #333; text-align:center;'>{row['Дней стока']}</td>
+            <td style='padding:8px; border:1px solid #333; text-align:right;'>{row['Прайс (Без скидки)']}</td>
+            <td style='padding:8px; border:1px solid #333; text-align:right; color:blue; font-weight:bold;'>{row['Автопродикс (Цена ОТ)']}</td>
+            <td style='padding:8px; border:1px solid #333; text-align:right;'>{row['Дилеры СПб (Цена ОТ)']}</td>
+            <td style='padding:8px; border:1px solid #333;'>{row['Статус витрины']}</td>
+        </tr>
+        """
+    
+    html_content = f"""
+    <html>
+    <head>
+        <meta charset='utf-8'>
+        <style>
+            body {{ font-family: 'Arial', sans-serif; padding: 20px; color: black; background: white; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }}
+            th {{ background-color: #f2f2f2; padding: 8px; border: 1px solid #333; text-align: left; }}
+        </style>
+    </head>
+    <body>
+        <h2 style='text-align:center; margin-bottom:5px;'>МОНИТОРИНГ ЦЕН ПРОДАЖИ АВТОПРОДИКС НА АВИТО</h2>
+        <h4 style='text-align:center; margin-top:0; color:#555;'>ПОЛУЧАТЕЛЬ: {manager_title}</h4>
+        <p style='text-align:center; font-size:12px;'>Дата формирования: {datetime.now().strftime('%d.%m.%Y')} | Регион: Санкт-Петербург</p>
+        <hr style='border:1px solid #333;'>
+        <table>
+            <thead>
+                <tr>
+                    <th>Автомобиль и Комплектация</th>
+                    <th>Год</th>
+                    <th>Дней стока</th>
+                    <th>Прайс 1С</th>
+                    <th>Автопродикс (ОТ)</th>
+                    <th>Рынок СПб (ОТ)</th>
+                    <th>Статус витрины</th>
+                </tr>
+            </thead>
+            <tbody>
+                {table_rows}
+            </tbody>
+        </table>
+        <br><br>
+        <script>window.onload = function() {{ window.print(); }}</script>
+    </body>
+    </html>
+    """
+    
+    b64 = base64.b64encode(html_content.encode('utf-8')).decode()
+    return f'<a href="data:text/html;base64,{b64}" download="{filename}.html" style="text-decoration:none;"><button style="background-color:#0066cc; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold;">📥 Скачать PDF-отчет для печати</button></a>'
+
 uploaded_file = st.file_uploader("Шаг 1: Загрузите Excel-файл выгрузки склада 1С", type=["xlsx", "xls"])
 
 if uploaded_file is not None:
     df = pd.read_excel(uploaded_file)
-    st.success("Файл склада успешно загружен. ИИ-агент производит поиск объявлений Автопродикс на Авито СПб...")
+    st.success("Файл склада успешно загружен.")
     
-    # Считывание и автоматическое переименование столбцов 1С
     rename_dict = {}
     for col in df.columns:
         col_str = str(col).lower().strip()
@@ -65,14 +105,7 @@ if uploaded_file is not None:
             
     df = df.rename(columns=rename_dict)
     
-    st.write("### 📊 Шаг 2: Анализируемый склад (Идентификация по году и комплектации):")
-    st.dataframe(df, use_container_width=True)
-    
-    st.write("### 🤖 Шаг 3: Коммерческий ИИ-аудит витрин Авито по Санкт-Петербургу:")
-    
-    changan_data = []
-    gac_umo_data = []
-    volga_data = []
+    changan_data, gac_umo_data, volga_data = [], [], []
     has_overaged = False
     
     for index, row in df.iterrows():
@@ -108,39 +141,29 @@ if uploaded_file is not None:
         
         try: days_on_stock = int(float(str(row.get('Dni', 0)).replace('дн', '').strip()))
         except: days_on_stock = 0
-            
         try: rrc_price = float(str(row.get('RRC', 0)).replace(' ', '').replace(',', ''))
         except: rrc_price = 0
             
-        if rrc_price == 0:
-            continue
+        if rrc_price == 0: continue
             
-        # ЗАПУСК ИИ-СРАВНЕНИЯ С УЧЕТОМ КОМПЛЕКТАЦИИ И ГОДА ВЫПУСКА
         our_avito_price, comp_price = get_live_market_classified_data_with_year(brand, model, rrc_price, year_raw)
         
         if our_avito_price is None:
-            status_text = "ОТСУТСТВУЕТ НА ВИТРИНЕ ❌"
-            rec_text = f"❌ **Пропуск публикации!** Машина {year_raw} года ({days_on_stock} дн. стока) есть в 1С, но объявления Автопродикс нет на Авито СПб."
+            status_text = "ОТСУТСТВУЕТ ❌"
+            rec_text = "Пропуск выгрузки на Авито СПб."
         else:
             diff = our_avito_price - comp_price
-            
             if diff > 20000:
-                status_text = "НАША ЦЕНА ЗАВЫШЕНА ⚠️"
-                if days_on_stock >= 100:
-                    has_overaged = True
-                    rec_text = f"🚨 **Тяжелый сток ({days_on_stock} дн.)!** Автомобиль {year_raw} года выставлен ДОРОЖЕ конкурентов в СПб на {diff:,} руб. Снизить цену ОТ в объявлении Автопродикс до рынка."
-                else:
-                    rec_text = f"По году выпуска {year_raw} мы проигрываем первую цену в Питере на {diff:,} руб. (Рынок: {comp_price:,} руб.)."
+                status_text = "ЗАВЫШЕНА ЦЕНА ⚠️"
+                rec_text = f"Снизить цену в объявлении до {comp_price:,} руб."
+                if days_on_stock >= 100: has_overaged = True
             elif diff < -20000:
-                status_text = "ЛИДЕР ВЫДАЧИ АВИТО 🟢"
-                rec_text = f"Отличная стартовая цена на {year_raw} г.в. Мы дешевле других дилеров СПб на {abs(diff):,} руб. Карточка товара в топе выдачи Авито."
+                status_text = "ЛИДЕР ВЫДАЧИ 🟢"
+                rec_text = "Мы дешевле конкурентов. Цена оптимальна."
             else:
-                status_text = "ИДЕАЛЬНЫЙ ПАРИТЕТ С РЫНКОМ 🟢"
-                rec_text = f"Цена ОТ полностью соответствует текущему рынку Санкт-Петербурга для {year_raw} года выпуска ({comp_price:,} руб.)."
+                status_text = "В ПАРИТЕТЕ 🟢"
+                rec_text = "Цена полностью соответствует рынку СПб."
 
-        st.markdown(f"• **{brand_raw} {model_raw} ({year_raw} г.в.)** ➔ {rec_text}")
-        
-        # Формирование структурированных таблиц РОПов
         car_info = {
             "Автомобиль и Комплектация": f"{brand_raw} {model_raw} ({trim_raw})",
             "Год": year_raw,
@@ -156,23 +179,28 @@ if uploaded_file is not None:
         elif brand in ["GAC", "UMO"]: gac_umo_data.append(car_info)
         else: changan_data.append(car_info)
             
-    if has_overaged:
-        st.error("🚨 ВНИМАНИЕ ДИРЕКТОРА: ОБНАРУЖЕН ЗАВИСШИЙ СТАРЫЙ СТOК С ЗАВЫШЕННЫМИ ЦЕНАМИ НА АВИТО САНКТ-ПЕТЕРБУРГ!")
-        
     st.write("---")
-    st.write("### 🖨️ Шаг 4: Выдача индивидуальных заданий РОПам")
+    st.write("### 🖨️ Шаг 3: Выгрузка раздельных файлов для РОПов")
     
-    def make_html_report(manager_title, data_list):
-        if not data_list: 
-            return "<p style='padding:20px; text-align:center; color:gray; font-family:Arial;'>В загруженном файле нет автомобилей для данного отдела.</p>"
-        st.subheader("Мониторинг цен продажи Автопродикс на Авито")
-        st.write(f"**ПОЛУЧАТЕЛЬ:** {manager_title}  \n**Дата:** {datetime.now().strftime('%d.%m.%Y')} | Дифференцированный аудит по годам выпуска и модификациям")
-        st.table(pd.DataFrame(data_list))
-        st.write("---")
-
     tab1, tab2, tab3 = st.tabs(["📋 Лист РОПа CHANGAN / DEEPAL", "📋 Лист РОПа GAC / UMO", "📋 Лист РОПа VOLGA"])
-    with tab1: make_html_report("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ CHANGAN / DEEPAL (АВТОПРОДИКС)", changan_data)
-    with tab2: make_html_report("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ GAC / UMO (АВТОПРОДИКС)", gac_umo_data)
-    with tab3: make_html_report("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ VOLGA (АВТОПРОДИКС)", volga_data)
-else:
-    st.info("Пожалуйста, загрузите ваш Excel-файл для глубокого ИИ-анализа витрин Авито.")
+    
+    with tab1:
+        st.subheader("Мониторинг цен продажи Автопродикс на Авито (Бренд: CHANGAN / DEEPAL)")
+        if changan_data:
+            st.table(pd.DataFrame(changan_data))
+            lnk1 = create_pdf_download_link("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ CHANGAN / DEEPAL", changan_data, "Otchet_Changan_Avtoprodix")
+            st.markdown(lnk1, unsafe_allow_bytes=True, unsafe_allow_html=True)
+        else: st.info("Нет автомобилей для данного отдела.")
+        
+    with tab2:
+        st.subheader("Мониторинг цен продажи Автопродикс на Авито (Бренд: GAC / UMO)")
+        if gac_umo_data:
+            st.table(pd.DataFrame(gac_umo_data))
+            lnk2 = create_pdf_download_link("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ GAC / UMO", gac_umo_data, "Otchet_GAC_UMO_Avtoprodix")
+            st.markdown(lnk2, unsafe_allow_bytes=True, unsafe_allow_html=True)
+        else: st.info("Нет автомобилей для данного отдела.")
+        
+    with tab3:
+        st.subheader("Мониторинг цен продажи Автопродикс на Авито (Бренд: VOLGA)")
+        if volga_data:
+            st.table(pd.DataFrame(volga_data))
