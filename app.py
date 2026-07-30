@@ -1,13 +1,13 @@
 import streamlit as st
 import pandas as pd
+from fpdf import FPDF
+from datetime import datetime
 
 st.set_page_config(page_title="ИИ-Аналитик Склада СПб", layout="wide")
 
 st.title("🚗 Профессиональный ИИ-Аналитик склада (Санкт-Петербург)")
 st.subheader("Личный кабинет Директора брендов: Changan, GAC, Volga, UMO")
 
-# ЭТАЛОННАЯ БАЗА РЕАЛЬНЫХ ЦЕН С УЧЕТОМ ДЕМПИНГА АВИТО В СПБ (ИЮЛЬ 2026)
-# Каждая модель имеет свой жесткий ценовой ориентир, исключающий "уравниловку"
 MARKET_DATABASE_SPB = {
     "CHANGAN": {
         "ALSVIN": 1950000, "EADO PLUS": 2400000, "LAMORE": 2900000,
@@ -37,7 +37,6 @@ if uploaded_file is not None:
     df = pd.read_excel(uploaded_file)
     st.success("Файл успешно прочитан ИИ-агентом!")
     
-    # Интеллектуальное выравнивание колонок 1С
     rename_dict = {}
     for col in df.columns:
         col_str = str(col).lower().strip()
@@ -56,6 +55,7 @@ if uploaded_file is not None:
     st.write("### 🤖 Управленческие решения ИИ-Агента на основе рынка Санкт-Петербурга:")
     
     recommendations = []
+    pdf_text_lines = [] # База для печатного отчета
     has_overaged = False
     
     for index, row in df.iterrows():
@@ -65,13 +65,11 @@ if uploaded_file is not None:
         brand = brand_raw
         model = None
         
-        # Поиск бренда в базе
         for known_brand in MARKET_DATABASE_SPB.keys():
             if known_brand in brand_raw:
                 brand = known_brand
                 break
                 
-        # Поиск точной модели (очистка от индексов MCA, NEW, LUXURY)
         if brand in MARKET_DATABASE_SPB:
             model_clean = model_raw.replace(" ", "").replace("-", "")
             sorted_known_models = sorted(MARKET_DATABASE_SPB[brand].keys(), key=len, reverse=True)
@@ -81,49 +79,93 @@ if uploaded_file is not None:
                     model = known_model
                     break
         
-        # Чтение дней на складе
         try: days_on_stock = int(float(str(row.get('Дней на складе', 0)).replace('дн', '').strip()))
         except: days_on_stock = 0
-            
-        # Чтение цен
         try: current_price = float(str(row.get('Текущая розничная цена', 0)).replace(' ', '').replace(',', ''))
         except: current_price = 0
-            
         try: min_price = float(str(row.get('Минимальный порог цены', 0)).replace(' ', '').replace(',', ''))
         except: min_price = current_price * 0.95
         
-        # Получение эталонной цены конкретной модели для СПб
         comp_price = MARKET_DATABASE_SPB.get(brand, {}).get(model, None)
         
         if comp_price and current_price > 0:
             diff = current_price - comp_price
             
-            # Логика триггеров
             if days_on_stock >= 100:
                 has_overaged = True
                 suggested_price = max(comp_price - 30000, min_price)
                 if current_price > comp_price:
-                    rec_text = f"🚨 **Критический сток ({days_on_stock} дн.)!** Мы дороже рынка СПб на {diff:,} ₽. Реальный Авито дилеров: {comp_price:,} ₽. **Рекомендация:** Установить спец. цену **{suggested_price:,} ₽**."
+                    status_type = "КРИТИЧЕСКИЙ СТОК"
+                    rec_text = f"🚨 **Критический сток ({days_on_stock} дн.)!** Мы дороже рынка СПб на {diff:,} ₽. Рекомендация: Снизить цену до **{suggested_price:,} ₽**."
                 else:
-                    rec_text = f"🚨 **Критический сток ({days_on_stock} дн.)!** Цена в лоб соответствует рынку СПб ({current_price:,} ₽). Прайс на сайте не снижать. Выделите менеджерам скрытый бонус +40 000 ₽ за выдачу этого VIN."
-            
+                    status_type = "КРИТИЧЕСКИЙ СТОК"
+                    rec_text = f"🚨 **Критический сток ({days_on_stock} дн.)!** Цена соответствует рынку. Рекомендация РОПу: Выделить скрытый бонус менеджерам +40 000 ₽."
             elif days_on_stock > 45:
                 suggested_price = max(comp_price, min_price)
                 if diff > 50000:
-                    rec_text = f"⚠️ **Зависание склада ({days_on_stock} дн.).** Стоимость выше рынка СПб на {diff:,} ₽. Рекомендуем выровнять прайс до **{suggested_price:,} ₽**."
+                    status_type = "ЗАВИСАНИЕ"
+                    rec_text = f"⚠️ **Зависание склада ({days_on_stock} дн.).** Дороже рынка на {diff:,} ₽. Рекомендуем выровнять прайс до **{suggested_price:,} ₽**."
                 else:
-                    rec_text = f"🟢 Склад {days_on_stock} дн. Цена оптимальна относительно конкурентов в Санкт-Петербурге ({comp_price:,} ₽). Удерживаем маржу."
-            
+                    status_type = "В РЫНКЕ"
+                    rec_text = f"🟢 Склад {days_on_stock} дн. Цена оптимальна относительно конкурентов СПб ({comp_price:,} ₽)."
             else:
-                rec_text = f"🟢 **Свежий склад ({days_on_stock} дн.).** Цена полностью соответствует текущему рыночному позиционированию в СПб ({comp_price:,} ₽)."
+                status_type = "СВЕЖИЙ СТОК"
+                rec_text = f"🟢 **Свежий склад ({days_on_stock} дн.).** Цена полностью соответствует рынку Санкт-Петербурга ({comp_price:,} ₽)."
         else:
-            rec_text = f"⚪ Модель {brand_raw} {model_raw} принята системой. Для глубокого анализа этой модификации требуется расширение базы комплектаций."
+            status_type = "НЕТ ДАННЫХ"
+            rec_text = f"⚪ Модель принята. Требуется расширение базы."
             
         recommendations.append(f"• **{brand_raw} {model_raw}** ➔ {rec_text}")
+        # Форматируем строку для PDF (чистый текст без markdown-звездочек)
+        pdf_text_lines.append(f"- {brand_raw} {model_raw} ({days_on_stock} дн., {current_price:,.0f} руб.) [{status_type}] -> {rec_text.replace('**', '').replace('🚨', '').replace('⚠️', '').replace('🟢', '')}")
         
     if has_overaged:
         st.error("🚨 ВНИМАНИЕ ДИРЕКТОРА: НА СКЛАДЕ ОБНАРУЖЕНЫ АВТОМОБИЛИ С КРИТИЧЕСКИМ СРОКОМ ХРАНЕНИЯ (>100 ДНЕЙ)!")
+        
     for rec in recommendations:
         st.markdown(rec)
+        
+    # --- СБОРКА И ГЕНЕРАЦИЯ PDF КОРРЕКТНЫМ СПОСОБОМ ---
+    st.write("---")
+    st.write("### 🖨️ Шаг 4: Экспорт отчета для утреннего совещания")
+    
+    if st.button("Сгенерировать официальный PDF-отчет"):
+        pdf = FPDF()
+        pdf.add_page()
+        
+        # Используем стандартный безопасный шрифт FPDF, который гарантированно не упадет
+        pdf.set_font("Helvetica", size=12)
+        
+        # Шапка официального документа
+        pdf.cell(200, 10, txt="RAPORT FOR MORNING MEETING / ANALYTICS DEPT", ln=True, align='C')
+        pdf.cell(200, 10, txt=f"Date: {datetime.now().strftime('%d.%m.%Y')} | Region: St. Petersburg", ln=True, align='C')
+        pdf.cell(200, 10, txt="========================================================", ln=True, align='C')
+        pdf.ln(10)
+        
+        # Переводим кириллицу в безопасную транслитерацию для Helvetica, чтобы не было кракозябр
+        def trans(text):
+            rules = {"А":"A","Б":"B","В":"V","Г":"G","Д":"D","Е":"E","Ё":"E","Ж":"Zh","З":"Z","И":"I","Й":"Y","К":"K","Л":"L","М":"M","Н":"N","О":"O","П":"P","Р":"R","С":"S","Т":"T","У":"U","Ф":"F","Х":"Kh","Ц":"Ts","Ч":"Ch","Ш":"Sh","Щ":"Shch","Ъ":"","Ы":"Y","Ь":"","Э":"E","Ю":"Yu","Я":"Ya","а":"a","б":"b","в":"v","г":"g","д":"d","е":"e","ё":"e","ж":"zh","з":"z","и":"i","й":"y","к":"k","л":"l","м":"m","н":"n","о":"o","п":"p","р":"r","с":"s","т":"t","у":"u","ф":"f","х":"kh","ц":"ts","ч":"ch","ш":"sh","щ":"shch","ъ":"","ы":"y","ь":"","э":"e","ю":"yu","я":"ya","₽":"руб","«":'"',"»":'"',"ё":"e"}
+            return "".join(rules.get(c, c) for c in text)
+
+        if has_overaged:
+            pdf.cell(200, 10, txt="!!! WARNING: CRITICAL OVERAGED STOCK DETECTED (>100 DAYS) !!!", ln=True)
+            pdf.ln(5)
+            
+        for line in pdf_text_lines:
+            # Записываем каждую рекомендацию безопасной строкой
+            pdf.multi_cell(0, 10, txt=trans(line))
+            
+        pdf.ln(15)
+        pdf.cell(200, 10, txt="Director's resolution: ___________________________", ln=True)
+        
+        # Превращаем документ в байты для кнопки скачивания
+        pdf_bytes = pdf.output(dest='S')
+        
+        st.download_button(
+            label="📥 Скачать готовый PDF для печати",
+            data=pdf_bytes,
+            file_name=f"Сводка_Склад_СПб_{datetime.now().strftime('%d_%m_%Y')}.pdf",
+            mime="application/pdf"
+        )
 else:
     st.info("Пожалуйста, загрузите ваш Excel-файл для точного коммерческого анализа рынка Санкт-Петербурга.")
