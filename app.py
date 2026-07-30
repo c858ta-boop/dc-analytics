@@ -39,11 +39,11 @@ if uploaded_file is not None:
     for col in df.columns:
         col_str = str(col).lower().strip()
         if any(x in col_str for x in ['бренд', 'марка', 'производ']): rename_dict[col] = 'Бренд'
-        elif 'модель' in col_str: rename_dict[col] = 'Модель'
-        elif any(x in col_str for x in ['день', 'дней', 'срок', 'возраст', 'сток', 'хранения']): rename_dict[col] = 'Дней на складе'
+        elif 'модель' in col_str: rename_dict[col] = 'Model'
+        elif any(x in col_str for x in ['день', 'дней', 'срок', 'возраст', 'сток', 'хранения']): rename_dict[col] = 'Dni'
         elif any(x in col_str for x in ['текущая', 'рознич', 'цена', 'прайс']) and not any(y in col_str for y in ['порог', 'минимум']):
-            rename_dict[col] = 'Текущая розничная цена'
-        elif any(x in col_str for x in ['порог', 'минимум', 'мин']): rename_dict[col] = 'Минимальный порог цены'
+            rename_dict[col] = 'Price'
+        elif any(x in col_str for x in ['порог', 'минимум', 'мин']): rename_dict[col] = 'MinPrice'
             
     df = df.rename(columns=rename_dict)
     
@@ -52,21 +52,16 @@ if uploaded_file is not None:
     
     st.write("### 🤖 Управленческие решения ИИ-Агента на основе рынка Санкт-Петербурга:")
     
-    rop_groups = {
-        "CHANGAN": [],
-        "GAC_UMO": [], 
-        "VOLGA": []
-    }
+    rop_groups = {"CHANGAN": [], "GAC_UMO": [], "VOLGA": []}
     has_overaged = False
     
     for index, row in df.iterrows():
         brand_raw = str(row.get('Бренд', '')).upper().strip()
-        model_raw = str(row.get('Модель', '')).upper().strip()
+        model_raw = str(row.get('Model', '')).upper().strip()
         
-        brand = "CHANGAN"  # По умолчанию
+        brand = "CHANGAN"
         model = None
         
-        # СУПЕР-НАДЕЖНОЕ КИРИЛЛИЧЕСКОЕ И СТРОЧНОЕ РАСПОЗНАВАНИЕ БРЕНДОВ
         if "VOLGA" in brand_raw or "ВОЛГА" in brand_raw or "VOL" in brand_raw:
             brand = "VOLGA"
         elif "GAC" in brand_raw or "ГАК" in brand_raw:
@@ -85,11 +80,11 @@ if uploaded_file is not None:
                     model = known_model
                     break
         
-        try: days_on_stock = int(float(str(row.get('Дней на складе', 0)).replace('дн', '').strip()))
+        try: days_on_stock = int(float(str(row.get('Dni', 0)).replace('дн', '').strip()))
         except: days_on_stock = 0
-        try: current_price = float(str(row.get('Текущая розничная цена', 0)).replace(' ', '').replace(',', ''))
+        try: current_price = float(str(row.get('Price', 0)).replace(' ', '').replace(',', ''))
         except: current_price = 0
-        try: min_price = float(str(row.get('Минимальный порог цены', 0)).replace(' ', '').replace(',', ''))
+        try: min_price = float(str(row.get('MinPrice', 0)).replace(' ', '').replace(',', ''))
         except: min_price = current_price * 0.95
         
         comp_price = MARKET_DATABASE_SPB.get(brand, {}).get(model, None)
@@ -132,7 +127,6 @@ if uploaded_file is not None:
         </tr>
         """
         
-        # Распределение строго по вашей оргструктуре
         if brand == "VOLGA":
             rop_groups["VOLGA"].append(row_html)
         elif brand in ["GAC", "UMO"]:
@@ -156,7 +150,6 @@ if uploaded_file is not None:
             <h3 style="text-align: center; margin-top: 0; color: #555;">РАСПОРЯЖЕНИЕ ПО КОРРЕКТИРОВКЕ ЦЕН И СТОКА ДЦ</h3>
             <p style="text-align: center; font-size: 13px; color: #666;">Дата: {datetime.now().strftime('%d.%m.%Y')} | Регион: Санкт-Петербург</p>
             <hr style="border: 1px solid #333;">
-            
             <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; color: black;">
                 <thead>
                     <tr style="background-color: #f2f2f2;">
@@ -188,3 +181,7 @@ if uploaded_file is not None:
         st.components.v1.html(make_html_report("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ GAC / UMO", rop_groups["GAC_UMO"]), height=500, scrolling=True)
         
     with tab3:
+        st.write("🖨️ *Для печати задания по Volga нажмите **Ctrl+P** (или **Cmd+P** на Mac)*")
+        st.components.v1.html(make_html_report("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ VOLGA", rop_groups["VOLGA"]), height=500, scrolling=True)
+else:
+    st.info("Пожалуйста, загрузите ваш Excel-файл для точного коммерческого анализа рынка Санкт-Петербурга.")
