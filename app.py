@@ -54,7 +54,10 @@ if uploaded_file is not None:
     
     st.write("### 🤖 Управленческие указания по итогам сквозного аудита витрины:")
     
-    rop_groups = {"CHANGAN": [], "GAC_UMO": [], "VOLGA": []}
+    # Резервуары для сбора HTML-строк таблиц РОПов
+    changan_rows = []
+    gac_umo_rows = []
+    volga_rows = []
     has_overaged = False
     
     for index, row in df.iterrows():
@@ -122,7 +125,6 @@ if uploaded_file is not None:
                 
         st.markdown(f"• **{brand_raw} {model_raw}** ➔ {rec_text}")
         
-        # ЗАЩИТА ОТ ОШИБКИ: Безопасное форматирование цены конкурентов
         comp_price_display = f"{comp_price:,.0f} ₽" if comp_price else "—"
         
         row_html = f"""
@@ -136,18 +138,25 @@ if uploaded_file is not None:
         </tr>
         """
         
-        if brand == "VOLGA": rop_groups["VOLGA"].append(row_html)
-        elif brand in ["GAC", "UMO"]: rop_groups["GAC_UMO"].append(row_html)
-        else: rop_groups["CHANGAN"].append(row_html)
+        # Сборка строк строго во внешние массивы
+        if brand == "VOLGA":
+            volga_rows.append(row_html)
+        elif brand in ["GAC", "UMO"]:
+            gac_umo_rows.append(row_html)
+        else:
+            changan_rows.append(row_html)
             
     if has_overaged:
         st.error("🚨 ВНИМАНИЕ ДИРЕКТОРА: НА СКЛАДЕ ОБНАРУЖЕНЫ АВТОМОБИЛИ С КРИТИЧЕСКИМ СРОКОМ ХРАНЕНИЯ (>100 ДНЕЙ)!")
         
+    # --- БЛОК ВКЛАДОК РОПОВ ВЫНЕСЕН ИЗ ВСЕХ ЦИКЛОВ НА САМЫЙ ВЕРХНИЙ УРОВЕНЬ ---
     st.write("---")
     st.write("### 🖨️ Шаг 4: Выдача индивидуальных заданий РОПам")
+    st.info("Ниже сформированы персональные печатные бланки. Перейдите на нужную вкладку и нажмите **Ctrl + P** на клавиатуре.")
     
-    def make_html_report(manager_title, rows):
-        if not rows: return "<p style='padding:20px; text-align:center; color:gray;'>В загруженном файле нет автомобилей для данного отдела.</p>"
+    def make_html_report(manager_title, rows_list):
+        if not rows_list: 
+            return "<p style='padding:20px; text-align:center; color:gray; font-family:Arial;'>В загруженном файле нет автомобилей для данного отдела.</p>"
         return f"""
         <div style="font-family: Arial, sans-serif; padding: 20px; background-color: white; color: black; border: 2px solid #333; border-radius: 5px;">
             <h2 style="text-align: center; margin-bottom: 5px; color: black;">ПОЛУЧАТЕЛЬ: {manager_title}</h2>
@@ -166,12 +175,7 @@ if uploaded_file is not None:
                     </tr>
                 </thead>
                 <tbody>
-                    {"".join(rows)}
+                    {"".join(rows_list)}
                 </tbody>
             </table>
             <br><br>
-            <p style="font-size: 13px; color: black;"><b>Срок исполнения РОПом:</b> 24 часа. Отчитаться об исправлении ошибок и переоценке.</p>
-            <p style="font-size: 13px; color: black;"><b>Подпись Директора ГК Автопродикс:</b> ___________________________</p>
-        </div>
-        """
-
