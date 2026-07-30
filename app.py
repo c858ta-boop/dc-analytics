@@ -27,7 +27,6 @@ def get_live_market_classified_data_with_year(brand, model, rrc_price, year):
         
     return autoprodix_min_price, competitor_min_price
 
-# Функция генерации чистого печатного HTML-текста (без сбоев кодировки)
 def generate_html_report_text(manager_title, data_list):
     df_pdf = pd.DataFrame(data_list)
     table_rows = ""
@@ -100,7 +99,6 @@ if uploaded_file is not None:
         elif any(x in col_str for x in ['без скидки', 'ррц', 'рознич', 'прайс']): rename_dict[col] = 'RRC'
             
     df = df.rename(columns=rename_dict)
-    
     changan_data, gac_umo_data, volga_data = [], [], []
     
     for index, row in df.iterrows():
@@ -212,3 +210,4 @@ if uploaded_file is not None:
             st.download_button(
                 label="📥 Скачать печатную форму (Volga)",
                 data=html_report3,
+                file_name=f"Report_Volga_{datetime.now().strftime('%d_%m_%Y')}.html",
