@@ -13,8 +13,7 @@ MARKET_DATABASE_SPB = {
         "CS35 PLUS": 2350000, "CS35 MAX": 2480000, "CS55 PLUS": 2650000,
         "UNI-S": 2680000, "UNI-T": 2850000, "CS75 PRO": 2865000,
         "CS75 PLUS": 3150000, "UNI-V": 2950000, "UNI-K": 4200000,
-        "CS85 COUPE": 3700000, "CS95": 4300000, "HUNTER PLUS": 3450000,
-        "AVATR 11": 6200000, "AVATR 12": 6900000
+        "CS85 COUPE": 3700000, "CS95": 4300000, "HUNTER PLUS": 3450000
     },
     "GAC": {
         "GS3": 2350000, "GS4": 2550000, "GS5": 2400000, 
@@ -39,7 +38,7 @@ if uploaded_file is not None:
     rename_dict = {}
     for col in df.columns:
         col_str = str(col).lower().strip()
-        if any(x in col_str for x in ['бренд', 'марка']): rename_dict[col] = 'Бренд'
+        if any(x in col_str for x in ['бренд', 'марка', 'производ']): rename_dict[col] = 'Бренд'
         elif 'модель' in col_str: rename_dict[col] = 'Модель'
         elif any(x in col_str for x in ['день', 'дней', 'срок', 'возраст', 'сток', 'хранения']): rename_dict[col] = 'Дней на складе'
         elif any(x in col_str for x in ['текущая', 'рознич', 'цена', 'прайс']) and not any(y in col_str for y in ['порог', 'минимум']):
@@ -53,10 +52,9 @@ if uploaded_file is not None:
     
     st.write("### 🤖 Управленческие решения ИИ-Агента на основе рынка Санкт-Петербурга:")
     
-    # Новая структура распределения по вашей оргструктуре
     rop_groups = {
         "CHANGAN": [],
-        "GAC_UMO": [], # Объединенная группа для одного РОПа
+        "GAC_UMO": [], 
         "VOLGA": []
     }
     has_overaged = False
@@ -68,10 +66,15 @@ if uploaded_file is not None:
         brand = brand_raw
         model = None
         
-        for known_brand in MARKET_DATABASE_SPB.keys():
-            if known_brand in brand_raw:
-                brand = known_brand
-                break
+        # Надежное определение бренда (включая русское написание ВОЛГА)
+        if "VOLGA" in brand_raw or "ВОЛГА" in brand_raw:
+            brand = "VOLGA"
+        elif "CHANGAN" in brand_raw or "ЧАНГАН" in brand_raw:
+            brand = "CHANGAN"
+        elif "GAC" in brand_raw or "ГАК" in brand_raw:
+            brand = "GAC"
+        elif "UMO" in brand_raw or "УМО" in brand_raw:
+            brand = "UMO"
                 
         if brand in MARKET_DATABASE_SPB:
             model_clean = model_raw.replace(" ", "").replace("-", "")
@@ -101,7 +104,7 @@ if uploaded_file is not None:
                     rec_text = f"🚨 **Критический сток ({days_on_stock} дн.)!** Мы дороже рынка СПб на {diff:,} ₽. Рекомендация: Снизить цену до **{suggested_price:,} ₽**."
                 else:
                     status_text, status_style = "КРИТИЧЕСКИЙ СТОК", "color: red; font-weight: bold;"
-                    rec_text = f"🚨 **Критический сток ({days_on_stock} дн.)!** Цена соответствует рынку. Назначить скрытый бонус менеджерам +40 000 ₽."
+                    rec_text = f"🚨 **Критический сток ({days_on_stock} дн.)!** Цена в рынке. Назначить скрытый бонус менеджерам +40 000 ₽."
             elif days_on_stock > 45:
                 suggested_price = max(comp_price, min_price)
                 if diff > 50000:
@@ -129,21 +132,20 @@ if uploaded_file is not None:
         </tr>
         """
         
-        # Распределение по новой оргструктуре
-        if "GAC" in brand_raw or "UMO" in brand_raw:
-            rop_groups["GAC_UMO"].append(row_html)
-        elif "VOLGA" in brand_raw:
+        # Распределение строго по вашей оргструктуре
+        if brand == "VOLGA":
             rop_groups["VOLGA"].append(row_html)
+        elif brand in ["GAC", "UMO"]:
+            rop_groups["GAC_UMO"].append(row_html)
         else:
             rop_groups["CHANGAN"].append(row_html)
             
     if has_overaged:
         st.error("🚨 ВНИМАНИЕ ДИРЕКТОРА: НА СКЛАДЕ ОБНАРУЖЕНЫ АВТОМОБИЛИ С КРИТИЧЕСКИМ СРОКОМ ХРАНЕНИЯ (>100 ДНЕЙ)!")
         
-    # --- БЛОК РАЗДЕЛЬНОЙ ПЕЧАТИ ДЛЯ РОПОВ ---
     st.write("---")
     st.write("### 🖨️ Шаг 4: Выдача индивидуальных заданий РОПам")
-    st.info("Ниже сформированы персональные бланки по вашей структуре отделов. Откройте нужную вкладку и нажмите **Ctrl + P** на клавиатуре.")
+    st.info("Ниже сформированы персональные бланки. Откройте нужную вкладку и нажмите **Ctrl + P** на клавиатуре.")
     
     def make_html_report(manager_title, rows):
         if not rows:
@@ -175,11 +177,11 @@ if uploaded_file is not None:
         </div>
         """
 
-    tab1, tab2, tab3 = st.tabs(["📋 Лист РОПа CHANGAN / AVATR", "📋 Лист РОПа GAC / UMO", "📋 Лист РОПа VOLGA"])
+    tab1, tab2, tab3 = st.tabs(["📋 Лист РОПа CHANGAN", "📋 Лист РОПа GAC / UMO", "📋 Лист РОПа VOLGA"])
     
     with tab1:
         st.write("🖨️ *Для печати задания по Changan нажмите **Ctrl+P** (или **Cmd+P** на Mac)*")
-        st.components.v1.html(make_html_report("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ CHANGAN / AVATR", rop_groups["CHANGAN"]), height=500, scrolling=True)
+        st.components.v1.html(make_html_report("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ CHANGAN", rop_groups["CHANGAN"]), height=500, scrolling=True)
         
     with tab2:
         st.write("🖨️ *Для печати задания по GAC и UMO нажмите **Ctrl+P** (или **Cmd+P** на Mac)*")
