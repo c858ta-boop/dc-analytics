@@ -7,7 +7,6 @@ st.set_page_config(page_title="ИИ-Аналитик Склада СПб", layou
 st.title("🚗 Профессиональный ИИ-Аналитик склада (Санкт-Петербург)")
 st.subheader("Личный кабинет Директора брендов: Changan, GAC, Volga, UMO")
 
-# НАСТОЯЩАЯ ДЕТАЛИЗИРОВАННАЯ БАЗА ЦЕН САНКТ-ПЕТЕРБУРГА (УЧТЕНЫ РЕСТАЙЛИНГИ И ПОКОЛЕНИЯ)
 MARKET_DATABASE_SPB = {
     "CHANGAN": {
         "ALSVIN": 1950000, "EADO PLUS": 2400000, "LAMORE": 2900000,
@@ -18,9 +17,7 @@ MARKET_DATABASE_SPB = {
     },
     "GAC": {
         "GS3": 2350000, "GS4": 2550000, "GS5": 2400000, 
-        "GS8 II FL": 5350000,  # Топовый рестайлинг (ваша модель)
-        "GS8": 4450000,        # Базовое поколение
-        "M8": 5800000, "EMPOW": 2990000,
+        "GS8 II FL": 5350000, "GS8": 4450000, "M8": 5800000, "EMPOW": 2990000,
         "S7": 6249000, "S9": 6700000
     },
     "VOLGA": {
@@ -38,6 +35,7 @@ if uploaded_file is not None:
     df = pd.read_excel(uploaded_file)
     st.success("Файл успешно прочитан ИИ-агентом!")
     
+    # Интеллектуальное выравнивание колонок 1С
     rename_dict = {}
     for col in df.columns:
         col_str = str(col).lower().strip()
@@ -59,20 +57,35 @@ if uploaded_file is not None:
     has_overaged = False
     
     for index, row in df.iterrows():
+        # Собираем ТЕКСТ ВСЕЙ СТРОКИ для сквозного поиска (защита от ошибок 1С)
+        row_full_text = " ".join([str(val) for val in row.values]).upper()
+        
         brand_raw = str(row.get('Бренд', '')).upper().strip()
         model_raw = str(row.get('Model', '')).upper().strip()
         
-        brand = "CHANGAN"
-        model = None
-        
-        if "VOLGA" in brand_raw or "ВОЛГА" in brand_raw or "VOL" in brand_raw: brand = "VOLGA"
-        elif "GAC" in brand_raw or "ГАК" in brand_raw: brand = "GAC"
-        elif "UMO" in brand_raw or "УМО" in brand_raw: brand = "UMO"
-        elif "CHANGAN" in brand_raw or "ЧАНГАН" in brand_raw or "CHAN" in brand_raw: brand = "CHANGAN"
+        # Сквозное определение бренда по всей строке целиком
+        if "VOLGA" in row_full_text or "ВИНСЕНТ" in row_full_text or "ВОЛГА" in row_full_text or "VOL" in row_full_text:
+            brand = "VOLGA"
+            brand_display = "VOLGA"
+        elif "GAC" in row_full_text or "ГАК" in row_full_text:
+            brand = "GAC"
+            brand_display = "GAC"
+        elif "UMO" in row_full_text or "УМО" in row_full_text:
+            brand = "UMO"
+            brand_display = "UMO"
+        else:
+            brand = "CHANGAN"
+            brand_display = "CHANGAN"
+            
+        if brand_raw == "" or brand_raw == "NAN":
+            brand_raw = brand_display
                 
+        model = None
         if brand in MARKET_DATABASE_SPB:
             model_clean = model_raw.replace(" ", "").replace("-", "")
-            # Ищем сначала сложные индексы (типа GS8 II FL, а не просто GS8)
+            if model_clean == "" or model_clean == "NAN":
+                model_clean = row_full_text.replace(" ", "").replace("-", "")
+                
             sorted_known_models = sorted(MARKET_DATABASE_SPB[brand].keys(), key=len, reverse=True)
             for known_model in sorted_known_models:
                 known_clean = known_model.replace(" ", "").replace("-", "")
@@ -92,35 +105,28 @@ if uploaded_file is not None:
         if comp_price and current_price > 0:
             diff = current_price - comp_price
             
-            # НОВАЯ КОРРЕКТНАЯ ЛОГИКА АНАЛИЗА
-            # Сценарий 1: Критический склад (>100 дней) независимо от цены
             if days_on_stock >= 100:
                 has_overaged = True
                 suggested_price = max(comp_price - 30000, min_price)
                 status_text, status_style = "КРИТИЧЕСКИЙ СТОК", "color: red; font-weight: bold;"
-                if diff > 0:
+                if diff > 50000:
                     rec_text = f"🚨 **Критический сток ({days_on_stock} дн.)!** Мы дороже рынка СПб на {diff:,} ₽. Требуется снизить цену до **{suggested_price:,} ₽**."
                 else:
-                    rec_text = f"🚨 **Критический сток ({days_on_stock} дн.)!** Цена в рынке, но машина зависла. Выделить скрытый бонус менеджерам +40 000 ₽."
-            
-            # Сценарий 2: Завышенная цена (Превышение рынка более чем на 50 000 руб), даже если склад свежий!
+                    rec_text = f"🚨 **Критический сток ({days_on_stock} дн.)!** Цена в рынке. Назначить скрытый бонус менеджерам +40 000 ₽."
             elif diff > 50000:
                 suggested_price = max(comp_price, min_price)
                 status_text, status_style = "ЗАВЫШЕНА ЦЕНА", "color: orange; font-weight: bold;"
-                rec_text = f"⚠️ **Завышена цена рынка!** Автомобиль стоит всего {days_on_stock} дн., но мы дороже конкурентов в СПб на {diff:,} ₽ (Рынок: {comp_price:,} ₽). Рекомендуем снизить до **{suggested_price:,} ₽**, иначе машина зависнет."
-            
-            # Сценарий 3: Зависание склада по времени (45-100 дней) при нормальной цене
+                rec_text = f"⚠️ **Завышена цена рынка!** Автомобиль стоит {days_on_stock} дн., но мы дороже конкурентов в СПб на {diff:,} ₽ (Рынок: {comp_price:,} ₽). Рекомендуем снизить до **{suggested_price:,} ₽**."
             elif days_on_stock > 45:
-                status_text, status_style = "ЗАВИСАНИЕ ПО ВРЕМЕНИ", "color: orange;"
-                rec_text = f"⚠️ **Зависание стока ({days_on_stock} дн.).** Цена соответствует рынку СПб ({comp_price:,} ₽), но оборачиваемость падает. Согласуйте локальный подарок клиенту."
-            
-            # Сценарий 4: Свежий склад и нормальная цена
+                status_text, status_style = "ЗАВИСАНИЕ", "color: orange;"
+                rec_text = f"⚠️ **Зависание стока ({days_on_stock} дн.).** Цена соответствует рынку СПб ({comp_price:,} ₽), но оборачиваемость падает."
             else:
                 status_text, status_style = "СВЕЖИЙ СТОК", "color: green;"
-                rec_text = f"🟢 **Свежий склад ({days_on_stock} дн.).** Цена полностью соответствует рыночному позиционированию комплектации в СПб ({comp_price:,} ₽)."
+                rec_text = f"🟢 **Свежий склад ({days_on_stock} дн.).** Цена полностью соответствует рыночному позиционированию в СПб ({comp_price:,} ₽)."
         else:
             status_text, status_style = "НЕТ ДАННЫХ", "color: black;"
-            rec_text = f"⚪ Модель {brand_raw} {model_raw} принята. Требуется расширение базы."
+            display_model_name = model if model else model_raw
+            rec_text = f"⚪ Модель {brand_display} {display_model_name} принята в систему. Требуется сверка модификации."
             
         st.markdown(f"• **{brand_raw} {model_raw}** ➔ {rec_text}")
         
