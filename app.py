@@ -1,11 +1,11 @@
-import streamlit as st
+import streamlit as m_st
 import pandas as pd
-from datetime import datetime
+from io import BytesIO
 
-st.set_page_config(page_title="Автопродикс: Живой Авито-Аудит", layout="wide")
+m_st.set_page_config(page_title="Автопродикс: Живой Авито-Аудит", layout="wide")
 
-st.title("🚗 ИИ-Агент: Динамический аудит витрины ГК «Автопродикс» на Авито СПб")
-st.subheader("Сравнение цен 'ОТ...' по конкретным комплектациям и ГОДУ ВЫПУСКА среди дилеров Санкт-Петербурга")
+m_st.title("🚗 ИИ-Агент: Динамический аудит витрины ГК «Автопродикс» на Авито СПб")
+m_st.subheader("Сравнение цен 'ОТ...' по конкретным комплектациям и ГОДУ ВЫПУСКА среди дилеров Санкт-Петербурга")
 
 def get_live_market_classified_data_with_year(brand, model, rrc_price, year):
     brand = brand.upper().strip()
@@ -27,66 +27,20 @@ def get_live_market_classified_data_with_year(brand, model, rrc_price, year):
         
     return autoprodix_min_price, competitor_min_price
 
-def generate_html_report_text(manager_title, data_list):
-    df_pdf = pd.DataFrame(data_list)
-    table_rows = ""
-    for _, row in df_pdf.iterrows():
-        table_rows += f"""
-        <tr>
-            <td style='padding:8px; border:1px solid #333;'>{row['Автомобиль и Комплектация']}</td>
-            <td style='padding:8px; border:1px solid #333; text-align:center;'>{row['Год']}</td>
-            <td style='padding:8px; border:1px solid #333; text-align:center;'>{row['Дней стока']}</td>
-            <td style='padding:8px; border:1px solid #333; text-align:right;'>{row['Прайс (Без скидки)']}</td>
-            <td style='padding:8px; border:1px solid #333; text-align:right; color:blue; font-weight:bold;'>{row['Автопродикс (Цена ОТ)']}</td>
-            <td style='padding:8px; border:1px solid #333; text-align:right;'>{row['Дилеры СПб (Цена ОТ)']}</td>
-            <td style='padding:8px; border:1px solid #333;'>{row['Статус витрины']}</td>
-        </tr>
-        """
-    
-    html_content = f"""<!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset='utf-8'>
-        <title>Мониторинг Автопродикс</title>
-        <style>
-            body {{ font-family: 'Arial', sans-serif; padding: 20px; color: black; background: white; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }}
-            th {{ background-color: #f2f2f2; padding: 8px; border: 1px solid #333; text-align: left; }}
-        </style>
-    </head>
-    <body>
-        <h2 style='text-align:center; margin-bottom:5px;'>МОНИТОРИНГ ЦЕН ПРОДАЖИ АВТОПРОДИКС НА АВИТО</h2>
-        <h4 style='text-align:center; margin-top:0; color:#555;'>ПОЛУЧАТЕЛЬ: {manager_title}</h4>
-        <p style='text-align:center; font-size:12px;'>Дата формирования: {datetime.now().strftime('%d.%m.%Y')} | Регион: Санкт-Петербург</p>
-        <hr style='border:1px solid #333;'>
-        <table>
-            <thead>
-                <tr>
-                    <th>Автомобиль и Комплектация</th>
-                    <th>Год</th>
-                    <th>Дней стока</th>
-                    <th>Прайс 1С</th>
-                    <th>Автопродикс (ОТ)</th>
-                    <th>Рынок СПб (ОТ)</th>
-                    <th>Статус витрины</th>
-                </tr>
-            </thead>
-            <tbody>
-                {table_rows}
-            </tbody>
-        </table>
-        <br><br>
-        <script>window.onload = function() {{ window.print(); }}</script>
-    </body>
-    </html>
-    """
-    return html_content
+# Безопасная функция перевода таблицы в Excel-байты без использования HTML
+def convert_df_to_excel(data_list):
+    if not data_list:
+        return None
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        pd.DataFrame(data_list).to_excel(writer, index=False, sheet_name='Мониторинг Авито')
+    return output.getvalue()
 
-uploaded_file = st.file_uploader("Шаг 1: Загрузите Excel-файл выгрузки склада 1С", type=["xlsx", "xls"])
+uploaded_file = m_st.file_uploader("Шаг 1: Загрузите Excel-файл выгрузки склада 1С", type=["xlsx", "xls"])
 
 if uploaded_file is not None:
     df = pd.read_excel(uploaded_file)
-    st.success("Файл склада успешно загружен.")
+    m_st.success("Файл склада успешно загружен.")
     
     rename_dict = {}
     for col in df.columns:
@@ -99,6 +53,7 @@ if uploaded_file is not None:
         elif any(x in col_str for x in ['без скидки', 'ррц', 'рознич', 'прайс']): rename_dict[col] = 'RRC'
             
     df = df.rename(columns=rename_dict)
+    
     changan_data, gac_umo_data, volga_data = [], [], []
     
     for index, row in df.iterrows():
@@ -171,43 +126,33 @@ if uploaded_file is not None:
         elif brand in ["GAC", "UMO"]: gac_umo_data.append(car_info)
         else: changan_data.append(car_info)
             
-    st.write("---")
-    st.write("### 🖨️ Шаг 3: Выгрузка раздельных файлов для РОПов")
+    m_st.write("---")
+    m_st.write("### 🖨️ Шаг 3: Мониторинг цен продажи Автопродикс на Авито")
     
-    tab1, tab2, tab3 = st.tabs(["📋 Лист РОПа CHANGAN / DEEPAL", "📋 Лист РОПа GAC / UMO", "📋 Лист РОПа VOLGA"])
+    t1, t2, t3 = m_st.tabs(["📋 Отдел CHANGAN / DEEPAL", "📋 Отдел GAC / UMO", "📋 Отдел VOLGA"])
     
-    with tab1:
-        st.subheader("Мониторинг цен продажи Автопродикс на Авито (CHANGAN / DEEPAL)")
+    with t1:
+        m_st.markdown("**ПОЛУЧАТЕЛЬ:** РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ CHANGAN / DEEPAL")
         if changan_data:
-            st.table(pd.DataFrame(changan_data))
-            html_report1 = generate_html_report_text("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ CHANGAN / DEEPAL", changan_data)
-            st.download_button(
-                label="📥 Скачать печатную форму (Changan)",
-                data=html_report1,
-                file_name=f"Report_Changan_{datetime.now().strftime('%d_%m_%Y')}.html",
-                mime="text/html"
-            )
-        else: st.info("Нет автомобилей для данного отдела.")
+            m_st.table(pd.DataFrame(changan_data))
+            x_data1 = convert_df_to_excel(changan_data)
+            m_st.download_button(label="📥 Скачать Excel-таблицу (Changan)", data=x_data1, file_name="Changan_Avto.xlsx", mime="application/vnd.ms-excel")
+        else: m_st.info("Нет автомобилей для данного отдела.")
         
-    with tab2:
-        st.subheader("Мониторинг цен продажи Автопродикс на Авито (GAC / UMO)")
+    with t2:
+        m_st.markdown("**ПОЛУЧАТЕЛЬ:** РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ GAC / UMO")
         if gac_umo_data:
-            st.table(pd.DataFrame(gac_umo_data))
-            html_report2 = generate_html_report_text("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ GAC / UMO", gac_umo_data)
-            st.download_button(
-                label="📥 Скачать печатную форму (GAC / UMO)",
-                data=html_report2,
-                file_name=f"Report_GAC_UMO_{datetime.now().strftime('%d_%m_%Y')}.html",
-                mime="text/html"
-            )
-        else: st.info("Нет автомобилей для данного отдела.")
+            m_st.table(pd.DataFrame(gac_umo_data))
+            x_data2 = convert_df_to_excel(gac_umo_data)
+            m_st.download_button(label="📥 Скачать Excel-таблицу (GAC / UMO)", data=x_data2, file_name="GAC_UMO_Avto.xlsx", mime="application/vnd.ms-excel")
+        else: m_st.info("Нет автомобилей для данного отдела.")
         
-    with tab3:
-        st.subheader("Мониторинг цен продажи Автопродикс на Авито (VOLGA)")
+    with tab3 if 'tab3' in locals() else t3:
+        m_st.markdown("**ПОЛУЧАТЕЛЬ:** РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ VOLGA")
         if volga_data:
-            st.table(pd.DataFrame(volga_data))
-            html_report3 = generate_html_report_text("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ VOLGA", volga_data)
-            st.download_button(
-                label="📥 Скачать печатную форму (Volga)",
-                data=html_report3,
-                file_name=f"Report_Volga_{datetime.now().strftime('%d_%m_%Y')}.html",
+            m_st.table(pd.DataFrame(volga_data))
+            x_data3 = convert_df_to_excel(volga_data)
+            m_st.download_button(label="📥 Скачать Excel-таблицу (Volga)", data=x_data3, file_name="Volga_Avto.xlsx", mime="application/vnd.ms-excel")
+        else: m_st.info("Нет автомобилей для данного отдела.")
+else:
+    m_st.info("Пожалуйста, загрузите ваш Excel-файл для генерации раздельных отчетов РОПам.")
