@@ -53,8 +53,12 @@ if uploaded_file is not None:
     
     st.write("### 🤖 Управленческие решения ИИ-Агента на основе рынка Санкт-Петербурга:")
     
-    recommendations = []
-    html_print_rows = ""  # Текст для печати
+    # Новая структура распределения по вашей оргструктуре
+    rop_groups = {
+        "CHANGAN": [],
+        "GAC_UMO": [], # Объединенная группа для одного РОПа
+        "VOLGA": []
+    }
     has_overaged = False
     
     for index, row in df.iterrows():
@@ -89,41 +93,33 @@ if uploaded_file is not None:
         
         if comp_price and current_price > 0:
             diff = current_price - comp_price
-            
             if days_on_stock >= 100:
                 has_overaged = True
                 suggested_price = max(comp_price - 30000, min_price)
                 if current_price > comp_price:
-                    status_style = "color: red; font-weight: bold;"
-                    status_text = "КРИТИЧЕСКИЙ СТОК"
+                    status_text, status_style = "КРИТИЧЕСКИЙ СТОК", "color: red; font-weight: bold;"
                     rec_text = f"🚨 **Критический сток ({days_on_stock} дн.)!** Мы дороже рынка СПб на {diff:,} ₽. Рекомендация: Снизить цену до **{suggested_price:,} ₽**."
                 else:
-                    status_style = "color: red; font-weight: bold;"
-                    status_text = "КРИТИЧЕСКИЙ СТОК"
-                    rec_text = f"🚨 **Критический сток ({days_on_stock} дн.)!** Цена соответствует рынку. Рекомендация РОПу: Выделить скрытый бонус менеджерам +40 000 ₽."
+                    status_text, status_style = "КРИТИЧЕСКИЙ СТОК", "color: red; font-weight: bold;"
+                    rec_text = f"🚨 **Критический сток ({days_on_stock} дн.)!** Цена соответствует рынку. Назначить скрытый бонус менеджерам +40 000 ₽."
             elif days_on_stock > 45:
                 suggested_price = max(comp_price, min_price)
                 if diff > 50000:
-                    status_style = "color: orange; font-weight: bold;"
-                    status_text = "ЗАВИСАНИЕ"
+                    status_text, status_style = "ЗАВИСАНИЕ", "color: orange; font-weight: bold;"
                     rec_text = f"⚠️ **Зависание склада ({days_on_stock} дн.).** Дороже рынка на {diff:,} ₽. Рекомендуем выровнять прайс до **{suggested_price:,} ₽**."
                 else:
-                    status_style = "color: green;"
-                    status_text = "В РЫНКЕ"
+                    status_text, status_style = "В РЫНКЕ", "color: green;"
                     rec_text = f"🟢 Склад {days_on_stock} дн. Цена оптимальна относительно конкурентов СПб ({comp_price:,} ₽)."
             else:
-                status_style = "color: gray;"
-                status_text = "СВЕЖИЙ СТОК"
+                status_text, status_style = "СВЕЖИЙ СТОК", "color: gray;"
                 rec_text = f"🟢 **Свежий склад ({days_on_stock} дн.).** Цена полностью соответствует рынку Санкт-Петербурга ({comp_price:,} ₽)."
         else:
-            status_style = "color: black;"
-            status_text = "НЕТ ДАННЫХ"
+            status_text, status_style = "НЕТ ДАННЫХ", "color: black;"
             rec_text = f"⚪ Модель принята. Требуется расширение базы."
             
         st.markdown(f"• **{brand_raw} {model_raw}** ➔ {rec_text}")
         
-        # Собираем красивую HTML таблицу для печати на русском языке
-        html_print_rows += f"""
+        row_html = f"""
         <tr>
             <td style="padding: 8px; border: 1px solid #ddd;"><b>{brand_raw} {model_raw}</b></td>
             <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">{days_on_stock}</td>
@@ -133,44 +129,61 @@ if uploaded_file is not None:
         </tr>
         """
         
+        # Распределение по новой оргструктуре
+        if "GAC" in brand_raw or "UMO" in brand_raw:
+            rop_groups["GAC_UMO"].append(row_html)
+        elif "VOLGA" in brand_raw:
+            rop_groups["VOLGA"].append(row_html)
+        else:
+            rop_groups["CHANGAN"].append(row_html)
+            
     if has_overaged:
         st.error("🚨 ВНИМАНИЕ ДИРЕКТОРА: НА СКЛАДЕ ОБНАРУЖЕНЫ АВТОМОБИЛИ С КРИТИЧЕСКИМ СРОКОМ ХРАНЕНИЯ (>100 ДНЕЙ)!")
         
-    # --- БЛОК ДЛЯ ИДЕАЛЬНОЙ ПЕЧАТИ ---
+    # --- БЛОК РАЗДЕЛЬНОЙ ПЕЧАТИ ДЛЯ РОПОВ ---
     st.write("---")
-    st.write("### 🖨️ Шаг 4: Версия для печати на утреннюю планерку")
+    st.write("### 🖨️ Шаг 4: Выдача индивидуальных заданий РОПам")
+    st.info("Ниже сформированы персональные бланки по вашей структуре отделов. Откройте нужную вкладку и нажмите **Ctrl + P** на клавиатуре.")
     
-    # Собираем полноценную страницу для печати
-    html_report = f"""
-    <div style="font-family: Arial, sans-serif; padding: 20px; background-color: white; color: black; border: 2px solid #333; border-radius: 5px;">
-        <h2 style="text-align: center; margin-bottom: 5px;">ОФИЦИАЛЬНЫЙ ОТЧЕТ ДЛЯ УТРЕННЕЙ ПЛАНЕРКИ ДЦ</h2>
-        <p style="text-align: center; font-size: 14px; color: #555;">Дата: {datetime.now().strftime('%d.%m.%Y')} | Регион: Санкт-Петербург</p>
-        <hr style="border: 1px solid #333;">
-        
-        <table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px;">
-            <thead>
-                <tr style="background-color: #f2f2f2;">
-                    <th style="padding: 10px; border: 1px solid #333; text-align: left;">Автомобиль</th>
-                    <th style="padding: 10px; border: 1px solid #333; text-align: center;">Дней стока</th>
-                    <th style="padding: 10px; border: 1px solid #333; text-align: right;">Цена 1С</th>
-                    <th style="padding: 10px; border: 1px solid #333; text-align: left;">Статус</th>
-                    <th style="padding: 10px; border: 1px solid #333; text-align: left;">Решение ИИ-агента</th>
-                </tr>
-            </thead>
-            <tbody>
-                {html_print_rows}
-            </tbody>
-        </table>
-        
-        <br><br><br>
-        <p style="font-size: 14px;"><b>Резолюция Директора ДЦ:</b> ____________________________________________________________________</p>
-        <p style="font-size: 12px; color: #777; text-align: right; margin-top: 30px;">Сформировано автономным ИИ-агентом</p>
-    </div>
-    """
-    
-    # Показываем красивый бланк прямо на сайте
-    st.write("👉 Нажмите сочетание клавиш **Ctrl + P** (или **Cmd + P** на Mac) прямо на этой странице браузера, чтобы отправить бланк ниже на принтер или сохранить в PDF.")
-    st.components.v1.html(html_report, height=600, scrolling=True)
+    def make_html_report(manager_title, rows):
+        if not rows:
+            return "<p style='padding:20px; text-align:center; color:gray;'>В загруженном файле нет автомобилей для данного отдела.</p>"
+        return f"""
+        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: white; color: black; border: 2px solid #333; border-radius: 5px;">
+            <h2 style="text-align: center; margin-bottom: 5px; color: black;">ПОЛУЧАТЕЛЬ: {manager_title}</h2>
+            <h3 style="text-align: center; margin-top: 0; color: #555;">РАСПОРЯЖЕНИЕ ПО КОРРЕКТИРОВКЕ ЦЕН И СТОКА ДЦ</h3>
+            <p style="text-align: center; font-size: 13px; color: #666;">Дата: {datetime.now().strftime('%d.%m.%Y')} | Регион: Санкт-Петербург</p>
+            <hr style="border: 1px solid #333;">
+            
+            <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; color: black;">
+                <thead>
+                    <tr style="background-color: #f2f2f2;">
+                        <th style="padding: 8px; border: 1px solid #333; text-align: left;">Автомобиль</th>
+                        <th style="padding: 8px; border: 1px solid #333; text-align: center;">Дней стока</th>
+                        <th style="padding: 8px; border: 1px solid #333; text-align: right;">Цена 1С</th>
+                        <th style="padding: 8px; border: 1px solid #333; text-align: left;">Статус склада</th>
+                        <th style="padding: 8px; border: 1px solid #333; text-align: left;">Указание Директора (ИИ-анализ)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {"".join(rows)}
+                </tbody>
+            </table>
+            <br><br>
+            <p style="font-size: 13px; color: black;"><b>Срок исполнения поручения РОПом:</b> 24 часа с момента получения. О результатах изменения витрины отчитаться.</p>
+            <p style="font-size: 13px; color: black;"><b>Подпись Директора ДЦ:</b> ___________________________</p>
+        </div>
+        """
 
-else:
-    st.info("Пожалуйста, загрузите ваш Excel-файл для точного коммерческого анализа рынка Санкт-Петербурга.")
+    tab1, tab2, tab3 = st.tabs(["📋 Лист РОПа CHANGAN / AVATR", "📋 Лист РОПа GAC / UMO", "📋 Лист РОПа VOLGA"])
+    
+    with tab1:
+        st.write("🖨️ *Для печати задания по Changan нажмите **Ctrl+P** (или **Cmd+P** на Mac)*")
+        st.components.v1.html(make_html_report("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ CHANGAN / AVATR", rop_groups["CHANGAN"]), height=500, scrolling=True)
+        
+    with tab2:
+        st.write("🖨️ *Для печати задания по GAC и UMO нажмите **Ctrl+P** (или **Cmd+P** на Mac)*")
+        st.components.v1.html(make_html_report("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ GAC / UMO", rop_groups["GAC_UMO"]), height=500, scrolling=True)
+        
+    with tab3:
+        st.write("🖨️ *Для печати задания по Volga нажмите **Ctrl+P** (или **Cmd+P** на Mac)*")
