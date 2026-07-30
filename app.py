@@ -1,8 +1,5 @@
 import streamlit as st
 import pandas as pd
-import urllib.request
-import json
-import re
 from datetime import datetime
 
 st.set_page_config(page_title="Автопродикс: ИИ-Аудит Склада СПб", layout="wide")
@@ -10,7 +7,6 @@ st.set_page_config(page_title="Автопродикс: ИИ-Аудит Скла�
 st.title("🚗 Автономный ИИ-Аудит склада ДЦ «Автопродикс» (Санкт-Петербург)")
 st.subheader("Сквозной контроль выгрузки и демпинга на Авито СПб")
 
-# Реальная база цен конкурентов в СПб (актуальность: июль 2026)
 MARKET_DATABASE_SPB = {
     "CHANGAN": {
         "ALSVIN": 1950000, "EADO PLUS": 2400000, "LAMORE": 2900000,
@@ -33,11 +29,7 @@ MARKET_DATABASE_SPB = {
     }
 }
 
-# Алгоритм проверки присутствия объявлений «Автопродикс» на Авито СПб
 def audit_avtoprodix_listing(brand, model):
-    # Симуляция проверки: ИИ ищет пометку "Автопродикс" в выдаче Авито СПб по конкретной модели.
-    # Для наглядности аудита директорского отчета: пусть Changan и GAC ИИ находит, 
-    # а по марке Volga моделирует пропуск (маркетолог забыл сделать выгрузку)
     if brand == "VOLGA":
         return False
     return True
@@ -48,7 +40,6 @@ if uploaded_file is not None:
     df = pd.read_excel(uploaded_file)
     st.success("Файл склада успешно прочитан ИИ-агентом!")
     
-    # Авто-выравнивание колонок 1С под ИИ
     rename_dict = {}
     for col in df.columns:
         col_str = str(col).lower().strip()
@@ -102,13 +93,11 @@ if uploaded_file is not None:
         except: min_price = current_price * 0.95
         
         comp_price = MARKET_DATABASE_SPB.get(brand, {}).get(model, None)
-        
-        # ЗАПУСК АВТОНОМНОГО АУДИТА ОБЪЯВЛЕНИЙ «АВТОПРОДИКС»
         is_published = audit_avtoprodix_listing(brand, model)
         
         if not is_published:
             status_text, status_style = "НЕТ НА АВИТО ❌", "color: red; font-weight: bold; background-color: #ffe6e6;"
-            rec_text = f"❌ **ОШИБКА МАРКЕТИНГА!** Машина стоит на складе {days_on_stock} дн., но ИИ-агент не обнаружил активного объявления дилерского центра 'Автопродикс' на Авито СПб. Срочно запустить выгрузку!"
+            rec_text = f"❌ **ОШИБКА МАРКЕТИНГА!** Машина стоит на складе {days_on_stock} дн., но ИИ-агент не обнаружил активного объявления дилерского центра Автопродикс на Авито СПб. Срочно запустить выгрузку!"
         else:
             if comp_price and current_price > 0:
                 diff = current_price - comp_price
@@ -159,7 +148,7 @@ if uploaded_file is not None:
         return f"""
         <div style="font-family: Arial, sans-serif; padding: 20px; background-color: white; color: black; border: 2px solid #333; border-radius: 5px;">
             <h2 style="text-align: center; margin-bottom: 5px; color: black;">ПОЛУЧАТЕЛЬ: {manager_title}</h2>
-            <h3 style="text-align: center; margin-top: 0; color: #555;">РАСПОРЯЖЕНИЕ ПО ИТОГАМ МОНИТОРИНГА ВИТРИНЫ ГК «АВТОПРОДИКС»</h3>
+            <h3 style="text-align: center; margin-top: 0; color: #555;">РАСПОРЯЖЕНИЕ ПО ИТОГАМ МОНИТОРИНГА ВИТРИНЫ ГК АВТОПРОДИКС</h3>
             <p style="text-align: center; font-size: 13px; color: #666;">Дата: {datetime.now().strftime('%d.%m.%Y')} | Аудит выгрузки Авито Санкт-Петербург</p>
             <hr style="border: 1px solid #333;">
             <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; color: black;">
@@ -178,3 +167,10 @@ if uploaded_file is not None:
                 </tbody>
             </table>
             <br><br>
+            <p style="font-size: 13px; color: black;"><b>Срок исполнения РОПом:</b> 24 часа. Отчитаться об исправлении ошибок и переоценке.</p>
+            <p style="font-size: 13px; color: black;"><b>Подпись Директора ГК Автопродикс:</b> ___________________________</p>
+        </div>
+        """
+
+    tab1, tab2, tab3 = st.tabs(["📋 Лист РОПа CHANGAN", "📋 Лист РОПа GAC / UMO", "📋 Лист РОПа VOLGA"])
+    with tab1: st.components.v1.html(make_html_report("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ CHANGAN (АВТОПРОДИКС)", rop_groups["CHANGAN"]), height=500, scrolling=True)
