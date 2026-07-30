@@ -4,7 +4,7 @@ from datetime import datetime
 
 st.set_page_config(page_title="Автопродикс: ИИ-Аудит Склада СПб", layout="wide")
 
-st.title("🚗 Автономный ИИ-Аудит склада ДЦ «Автопродикс» (Санкт-Петербург)")
+st.title("🚗 Автономный ИИ-Аудит склада ДЦ Автопродикс (Санкт-Петербург)")
 st.subheader("Сквозной контроль выгрузки и демпинга на Авито СПб")
 
 MARKET_DATABASE_SPB = {
@@ -54,7 +54,6 @@ if uploaded_file is not None:
     
     st.write("### 🤖 Управленческие указания по итогам сквозного аудита витрины:")
     
-    # Резервуары для сбора HTML-строк таблиц РОПов
     changan_rows = []
     gac_umo_rows = []
     volga_rows = []
@@ -99,8 +98,8 @@ if uploaded_file is not None:
         is_published = audit_avtoprodix_listing(brand, model)
         
         if not is_published:
-            status_text, status_style = "НЕТ НА АВИТО ❌", "color: red; font-weight: bold; background-color: #ffe6e6;"
-            rec_text = f"❌ **ОШИБКА МАРКЕТИНГА!** Машина стоит на складе {days_on_stock} дн., но ИИ-агент не обнаружил активного объявления дилерского центра Автопродикс на Авито СПб. Срочно запустить выгрузку!"
+            status_text, status_style = "НЕТ НА АВИТО", "color: red; font-weight: bold; background-color: #ffe6e6;"
+            rec_text = f"Ошибка маркетинга! Срочно выгрузить карточку товара. Автомобиль отсутствует на Авито СПб."
         else:
             if comp_price and current_price > 0:
                 diff = current_price - comp_price
@@ -109,73 +108,78 @@ if uploaded_file is not None:
                     suggested_price = max(comp_price - 30000, min_price)
                     status_text, status_style = "КРИТИЧЕСКИЙ СТОК", "color: red; font-weight: bold;"
                     if diff > 30000:
-                        rec_text = f"🚨 **Объявление Автопродикс в сети.** Прайс завышен относительно рынка СПб на {diff:,} ₽. Снизить цену в объявлении до **{suggested_price:,} ₽**."
+                        rec_text = f"Прайс завышен относительно рынка СПб на {diff:,} руб. Снизить цену в объявлении до {suggested_price:,} руб."
                     else:
-                        rec_text = f"🚨 **Объявление Автопродикс в сети.** Наша цена в рынке ({current_price:,} ₽), но сток стоит более 100 дн. Выделить скрытый бонус менеджерам +40 000 ₽."
+                        rec_text = f"Наша цена в рынке. Сток стоит более 100 дн. Выделить скрытый бонус менеджерам +40 000 руб."
                 elif diff > 50000:
                     suggested_price = max(comp_price, min_price)
                     status_text, status_style = "ДОРОЖЕ РЫНКА", "color: orange; font-weight: bold;"
-                    rec_text = f"⚠️ **Объявление Автопродикс в сети.** Мы дороже конкурентов по СПб на {diff:,} ₽ (Рынок: {comp_price:,} ₽). Рекомендуем выровнять до **{suggested_price:,} ₽** для роста входящих звонков."
+                    rec_text = f"Мы дороже конкурентов по СПб на {diff:,} руб. (Рынок: {comp_price:,} руб.). Выровнять до {suggested_price:,} руб."
                 else:
-                    status_text, status_style = "В РЫНКЕ 🟢", "color: green;"
-                    rec_text = f"🟢 **Объявление Автопродикс в сети.** Цена оптимальна и полностью выдерживает конкуренцию на Авито СПб ({comp_price:,} ₽)."
+                    status_text, status_style = "В РЫНКЕ", "color: green;"
+                    rec_text = f"Цена оптимальна и полностью выдерживает конкуренцию на Авито СПб ({comp_price:,} руб.)."
             else:
                 status_text, status_style = "НЕТ ДАННЫХ", "color: black;"
-                rec_text = f"⚪ Модель {brand_raw} {model_raw} распознана на складе. Ожидание расширения базы цен конкурентов."
+                rec_text = f"Модель распознана на складе. Ожидание расширения базы цен конкурентов."
                 
         st.markdown(f"• **{brand_raw} {model_raw}** ➔ {rec_text}")
         
-        comp_price_display = f"{comp_price:,.0f} ₽" if comp_price else "—"
+        comp_price_display = f"{comp_price:,.0f} руб." if comp_price else "—"
         
         row_html = f"""
         <tr>
-            <td style="padding: 8px; border: 1px solid #ddd;"><b>{brand_raw} {model_raw}</b></td>
-            <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">{days_on_stock}</td>
-            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">{current_price:,.0f} ₽</td>
-            <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: blue; font-weight: bold;">{comp_price_display}</td>
-            <td style="padding: 8px; border: 1px solid #ddd; {status_style}">{status_text}</td>
-            <td style="padding: 8px; border: 1px solid #ddd;">{rec_text}</td>
+            <td style='padding: 8px; border: 1px solid #ddd;'><b>{brand_raw} {model_raw}</b></td>
+            <td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>{days_on_stock}</td>
+            <td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>{current_price:,.0f} руб.</td>
+            <td style='padding: 8px; border: 1px solid #ddd; text-align: right; color: blue; font-weight: bold;'>{comp_price_display}</td>
+            <td style='padding: 8px; border: 1px solid #ddd; {status_style}'>{status_text}</td>
+            <td style='padding: 8px; border: 1px solid #ddd;'>{rec_text}</td>
         </tr>
         """
         
-        # Сборка строк строго во внешние массивы
-        if brand == "VOLGA":
-            volga_rows.append(row_html)
-        elif brand in ["GAC", "UMO"]:
-            gac_umo_rows.append(row_html)
-        else:
-            changan_rows.append(row_html)
+        if brand == "VOLGA": rop_groups["VOLGA"].append(row_html)
+        elif brand in ["GAC", "UMO"]: rop_groups["GAC_UMO"].append(row_html)
+        else: rop_groups["CHANGAN"].append(row_html)
             
     if has_overaged:
         st.error("🚨 ВНИМАНИЕ ДИРЕКТОРА: НА СКЛАДЕ ОБНАРУЖЕНЫ АВТОМОБИЛИ С КРИТИЧЕСКИМ СРОКОМ ХРАНЕНИЯ (>100 ДНЕЙ)!")
         
-    # --- БЛОК ВКЛАДОК РОПОВ ВЫНЕСЕН ИЗ ВСЕХ ЦИКЛОВ НА САМЫЙ ВЕРХНИЙ УРОВЕНЬ ---
     st.write("---")
     st.write("### 🖨️ Шаг 4: Выдача индивидуальных заданий РОПам")
-    st.info("Ниже сформированы персональные печатные бланки. Перейдите на нужную вкладку и нажмите **Ctrl + P** на клавиатуре.")
+    st.info("Ниже сформированы персональные бланки. Откройте нужную вкладку и нажмите Ctrl + P на клавиатуре.")
     
     def make_html_report(manager_title, rows_list):
         if not rows_list: 
             return "<p style='padding:20px; text-align:center; color:gray; font-family:Arial;'>В загруженном файле нет автомобилей для данного отдела.</p>"
+        
+        table_content = "".join(rows_list)
+        report_date = datetime.now().strftime('%d.%m.%Y')
+        
         return f"""
-        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: white; color: black; border: 2px solid #333; border-radius: 5px;">
-            <h2 style="text-align: center; margin-bottom: 5px; color: black;">ПОЛУЧАТЕЛЬ: {manager_title}</h2>
-            <h3 style="text-align: center; margin-top: 0; color: #555;">РАСПОРЯЖЕНИЕ ПО ИТОГАМ МОНИТОРИНГА ВИТРИНЫ ГК АВТОПРОДИКС</h3>
-            <p style="text-align: center; font-size: 13px; color: #666;">Дата: {datetime.now().strftime('%d.%m.%Y')} | Аудит выгрузки Авито Санкт-Петербург</p>
-            <hr style="border: 1px solid #333;">
-            <table style="width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; color: black;">
+        <div style='font-family: Arial, sans-serif; padding: 20px; background-color: white; color: black; border: 2px solid #333; border-radius: 5px;'>
+            <h2 style='text-align: center; margin-bottom: 5px; color: black;'>ПОЛУЧАТЕЛЬ: {manager_title}</h2>
+            <h3 style='text-align: center; margin-top: 0; color: #555;'>РАСПОРЯЖЕНИЕ ПО ИТОГАМ МОНИТОРИНГА ВИТРИНЫ ГК АВТОПРОДИКС</h3>
+            <p style='text-align: center; font-size: 13px; color: #666;'>Дата: {report_date} | Аудит выгрузки Авито Санкт-Петербург</p>
+            <hr style='border: 1px solid #333;'>
+            <table style='width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; color: black;'>
                 <thead>
-                    <tr style="background-color: #f2f2f2;">
-                        <th style="padding: 8px; border: 1px solid #333; text-align: left;">Автомобиль</th>
-                        <th style="padding: 8px; border: 1px solid #333; text-align: center;">Дней стока</th>
-                        <th style="padding: 8px; border: 1px solid #333; text-align: right;">Цена 1С</th>
-                        <th style="padding: 8px; border: 1px solid #333; text-align: right;">Рынок Авито СПб</th>
-                        <th style="padding: 8px; border: 1px solid #333; text-align: left;">Статус витрины Автопродикс</th>
-                        <th style="padding: 8px; border: 1px solid #333; text-align: left;">Указание Директора</th>
+                    <tr style='background-color: #f2f2f2;'>
+                        <th style='padding: 8px; border: 1px solid #333; text-align: left;'>Автомобиль</th>
+                        <th style='padding: 8px; border: 1px solid #333; text-align: center;'>Дней стока</th>
+                        <th style='padding: 8px; border: 1px solid #333; text-align: right;'>Цена 1С</th>
+                        <th style='padding: 8px; border: 1px solid #333; text-align: right;'>Рынок Авито СПб</th>
+                        <th style='padding: 8px; border: 1px solid #333; text-align: left;'>Статус витрины Автопродикс</th>
+                        <th style='padding: 8px; border: 1px solid #333; text-align: left;'>Указание Директора</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {"".join(rows_list)}
+                    {table_content}
                 </tbody>
             </table>
             <br><br>
+            <p style='font-size: 13px; color: black;'><b>Срок исполнения РОПом:</b> 24 часа. Отчитаться об исправлении ошибок и переоценке.</p>
+            <p style='font-size: 13px; color: black;'><b>Подпись Директора ГК Автопродикс:</b> ___________________________</p>
+        </div>
+        """
+
+    tab1, tab2, tab3 = st.tabs(["📋 Лист РОПа CHANGAN", "📋 Лист РОПа GAC / UMO", "📋 Лист РОПа VOLGA"])
