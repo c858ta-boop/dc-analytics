@@ -4,7 +4,7 @@ from datetime import datetime
 
 st.set_page_config(page_title="Автопродикс: Живой Авито-Аудит", layout="wide")
 
-st.title("🚗 ИИ-Агент: Динамический аудит витрины ГК «Автопродикс» на Авито СПб")
+st.title("🚗 ИИ-Агент: Динамический audit витрины ГК «Автопродикс» на Авито СПб")
 st.subheader("Сравнение цен 'ОТ...' по конкретным комплектациям и ГОДУ ВЫПУСКА среди дилеров Санкт-Петербурга")
 
 def get_live_market_classified_data_with_year(brand, model, rrc_price, year):
