@@ -54,7 +54,10 @@ if uploaded_file is not None:
     
     st.write("### 🤖 Управленческие указания по итогам сквозного аудита витрины:")
     
-    rop_groups = {"CHANGAN": [], "GAC_UMO": [], "VOLGA": []}
+    # Резервуары для хранения данных в стандартном формате таблиц Streamlit
+    changan_data = []
+    gac_umo_data = []
+    volga_data = []
     has_overaged = False
     
     for index, row in df.iterrows():
@@ -96,88 +99,81 @@ if uploaded_file is not None:
         is_published = audit_avtoprodix_listing(brand, model)
         
         if not is_published:
-            status_text, status_style = "НЕТ НА АВИТО", "color: red; font-weight: bold; background-color: #ffe6e6;"
-            rec_text = f"Ошибка маркетинга! Срочно выгрузить карточку товара. Автомобиль отсутствует на Авито СПб."
+            status_text = "НЕТ НА АВИТО ❌"
+            rec_text = "Ошибка маркетинга! Срочно выгрузить карточку товара. Автомобиль отсутствует на Авито СПб."
         else:
             if comp_price and current_price > 0:
                 diff = current_price - comp_price
                 if days_on_stock >= 100:
                     has_overaged = True
                     suggested_price = max(comp_price - 30000, min_price)
-                    status_text, status_style = "КРИТИЧЕСКИЙ СТОК", "color: red; font-weight: bold;"
+                    status_text = "КРИТИЧЕСКИЙ СТОК 🚨"
                     if diff > 30000:
-                        rec_text = f"Прайс завышен относительно рынка СПб на {diff:,} руб. Снизить цену в объявлении до {suggested_price:,} руб."
+                        rec_text = f"Прайс завышен на {diff:,} руб. Снизить цену в объявлении до {suggested_price:,} руб."
                     else:
-                        rec_text = f"Наша цена в рынке. Сток стоит более 100 дн. Выделить скрытый бонус менеджерам +40 000 руб."
+                        rec_text = f"Наша цена в рынке. Сток стоит >100 дн. Выделить скрытый бонус менеджерам +40 000 руб."
                 elif diff > 50000:
                     suggested_price = max(comp_price, min_price)
-                    status_text, status_style = "ДОРОЖЕ РЫНКА", "color: orange; font-weight: bold;"
+                    status_text = "ДОРОЖЕ РЫНКА ⚠️"
                     rec_text = f"Мы дороже конкурентов по СПб на {diff:,} руб. (Рынок: {comp_price:,} руб.). Выровнять до {suggested_price:,} руб."
                 else:
-                    status_text, status_style = "В РЫНКЕ", "color: green;"
+                    status_text = "В РЫНКЕ 🟢"
                     rec_text = f"Цена оптимальна и полностью выдерживает конкуренцию на Авито СПб ({comp_price:,} руб.)."
             else:
-                status_text, status_style = "НЕТ ДАННЫХ", "color: black;"
-                rec_text = f"Модель распознана на складе. Ожидание расширения базы цен конкурентов."
+                status_text = "НЕТ ДАННЫХ ⚪"
+                rec_text = "Модель распознана на складе. Ожидание расширения базы цен конкурентов."
                 
         st.markdown(f"• **{brand_raw} {model_raw}** ➔ {rec_text}")
         
-        comp_price_display = f"{comp_price:,.0f} руб." if comp_price else "—"
+        # Создаем плоский словарь данных для стандартных таблиц Streamlit
+        car_info = {
+            "Автомобиль": f"{brand_raw} {model_raw}",
+            "Дней стока": days_on_stock,
+            "Цена 1С (руб)": f"{current_price:,.0f}",
+            "Рынок Авито СПб (руб)": f"{comp_price:,.0f}" if comp_price else "—",
+            "Статус витрины": status_text,
+            "Указание Директора РОПу": rec_text
+        }
         
-        row_html = f"""
-        <tr>
-            <td style='padding: 8px; border: 1px solid #ddd;'><b>{brand_raw} {model_raw}</b></td>
-            <td style='padding: 8px; border: 1px solid #ddd; text-align: center;'>{days_on_stock}</td>
-            <td style='padding: 8px; border: 1px solid #ddd; text-align: right;'>{current_price:,.0f} руб.</td>
-            <td style='padding: 8px; border: 1px solid #ddd; text-align: right; color: blue; font-weight: bold;'>{comp_price_display}</td>
-            <td style='padding: 8px; border: 1px solid #ddd; {status_style}'>{status_text}</td>
-            <td style='padding: 8px; border: 1px solid #ddd;'>{rec_text}</td>
-        </tr>
-        """
-        
-        if brand == "VOLGA": rop_groups["VOLGA"].append(row_html)
-        elif brand in ["GAC", "UMO"]: rop_groups["GAC_UMO"].append(row_html)
-        else: rop_groups["CHANGAN"].append(row_html)
+        if brand == "VOLGA": rop_groups = "VOLGA"; volga_data.append(car_info)
+        elif brand in ["GAC", "UMO"]: rop_groups = "GAC_UMO"; gac_umo_data.append(car_info)
+        else: rop_groups = "CHANGAN"; changan_data.append(car_info)
             
     if has_overaged:
         st.error("🚨 ВНИМАНИЕ ДИРЕКТОРА: НА СКЛАДЕ ОБНАРУЖЕНЫ АВТОМОБИЛИ С КРИТИЧЕСКИМ СРОКОМ ХРАНЕНИЯ (>100 ДНЕЙ)!")
         
     st.write("---")
     st.write("### 🖨️ Шаг 4: Выдача индивидуальных заданий РОПам")
-    st.info("Ниже сформированы персональные бланки. Откройте нужную вкладку и нажмите Ctrl + P на клавиатуре.")
+    st.info("Перейдите на нужную вкладку ниже. Перед вами откроется бланк распоряжения ГК «Автопродикс».")
     
-    def make_html_report(manager_title, rows_list):
-        if not rows_list: 
-            return "<p style='padding:20px; text-align:center; color:gray; font-family:Arial;'>В загруженном файле нет автомобилей для данного отдела.</p>"
-        
-        table_content = "".join(rows_list)
-        report_date = datetime.now().strftime('%d.%m.%Y')
-        
-        return f"""
-        <div style='font-family: Arial, sans-serif; padding: 20px; background-color: white; color: black; border: 2px solid #333; border-radius: 5px;'>
-            <h2 style='text-align: center; margin-bottom: 5px; color: black;'>ПОЛУЧАТЕЛЬ: {manager_title}</h2>
-            <h3 style='text-align: center; margin-top: 0; color: #555;'>РАСПОРЯЖЕНИЕ ПО ИТОГАМ МОНИТОРИНГА ВИТРИНЫ ГК АВТОПРОДИКС</h3>
-            <p style='text-align: center; font-size: 13px; color: #666;'>Дата: {report_date} | Аудит выгрузки Авито Санкт-Петербург</p>
-            <hr style='border: 1px solid #333;'>
-            <table style='width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; color: black;'>
-                <thead>
-                    <tr style='background-color: #f2f2f2;'>
-                        <th style='padding: 8px; border: 1px solid #333; text-align: left;'>Автомобиль</th>
-                        <th style='padding: 8px; border: 1px solid #333; text-align: center;'>Дней стока</th>
-                        <th style='padding: 8px; border: 1px solid #333; text-align: right;'>Цена 1С</th>
-                        <th style='padding: 8px; border: 1px solid #333; text-align: right;'>Рынок Авито СПб</th>
-                        <th style='padding: 8px; border: 1px solid #333; text-align: left;'>Статус витрины Автопродикс</th>
-                        <th style='padding: 8px; border: 1px solid #333; text-align: left;'>Указание Директора</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {table_content}
-                </tbody>
-            </table>
-            <br><br>
-            <p style='font-size: 13px; color: black;'><b>Срок исполнения РОПом:</b> 24 часа. Отчитаться об исправлении ошибок и переоценке.</p>
-            <p style='font-size: 13px; color: black;'><b>Подпись Директора ГК Автопродикс:</b> ___________________________</p>
-        </div>
-        """
-
+    # Создание вкладок на чистом коде Streamlit, работающих мгновенно
     tab1, tab2, tab3 = st.tabs(["📋 Лист РОПа CHANGAN", "📋 Лист РОПа GAC / UMO", "📋 Лист РОПа VOLGA"])
+    
+    with tab1:
+        st.subheader("РАСПОРЯЖЕНИЕ ПО ИТОГАМ МОНИТОРИНГА ВИТРИНЫ ГК АВТОПРОДИКС")
+        st.write(f"**ПОЛУЧАТЕЛЬ:** РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ CHANGAN  \n**Дата:** {datetime.now().strftime('%d.%m.%Y')} | Аудит выгрузки Авито Санкт-Петербург")
+        if changan_data:
+            st.table(pd.DataFrame(changan_data))
+            st.write("**Срок исполнения РОПом:** 24 часа. Отчитаться об исправлении ошибок и переоценке.  \n**Подпись Директора ГК Автопродикс:** ___________________________")
+        else:
+            st.info("В загруженном файле нет автомобилей для данного отдела.")
+        
+    with tab2:
+        st.subheader("РАСПОРЯЖЕНИЕ ПО ИТОГАМ МОНИТОРИНГА ВИТРИНЫ ГК АВТОПРОДИКС")
+        st.write(f"**ПОЛУЧАТЕЛЬ:** РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ GAC / UMO  \n**Дата:** {datetime.now().strftime('%d.%m.%Y')} | Аудит выгрузки Авито Санкт-Петербург")
+        if gac_umo_data:
+            st.table(pd.DataFrame(gac_umo_data))
+            st.write("**Срок исполнения РОПом:** 24 часа. Отчитаться об исправлении ошибок и переоценке.  \n**Подпись Директора ГК Автопродикс:** ___________________________")
+        else:
+            st.info("В загруженном файле нет автомобилей для данного отдела.")
+        
+    with tab3:
+        st.subheader("РАСПОРЯЖЕНИЕ ПО ИТОГАМ МОНИТОРИНГА ВИТРИНЫ ГК АВТОПРОДИКС")
+        st.write(f"**ПОЛУЧАТЕЛЬ:** РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ VOLGA  \n**Дата:** {datetime.now().strftime('%d.%m.%Y')} | Аудит выгрузки Авито Санкт-Петербург")
+        if volga_data:
+            st.table(pd.DataFrame(volga_data))
+            st.write("**Срок исполнения РОПом:** 24 часа. Отчитаться об исправлении ошибок и переоценке.  \n**Подпись Директора ГК Автопродикс:** ___________________________")
+        else:
+            st.info("В загруженном файле нет автомобилей для данного отдела.")
+else:
+    st.info("Пожалуйста, загрузите ваш Excel-файл для запуска сквозного онлайн-анализа рынка СПб.")
