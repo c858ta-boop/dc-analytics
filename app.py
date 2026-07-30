@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from fpdf import FPDF
 from datetime import datetime
 
 st.set_page_config(page_title="ИИ-Аналитик Склада СПб", layout="wide")
@@ -55,7 +54,7 @@ if uploaded_file is not None:
     st.write("### 🤖 Управленческие решения ИИ-Агента на основе рынка Санкт-Петербурга:")
     
     recommendations = []
-    pdf_text_lines = [] # База для печатного отчета
+    html_print_rows = ""  # Текст для печати
     has_overaged = False
     
     for index, row in df.iterrows():
@@ -95,77 +94,83 @@ if uploaded_file is not None:
                 has_overaged = True
                 suggested_price = max(comp_price - 30000, min_price)
                 if current_price > comp_price:
-                    status_type = "КРИТИЧЕСКИЙ СТОК"
+                    status_style = "color: red; font-weight: bold;"
+                    status_text = "КРИТИЧЕСКИЙ СТОК"
                     rec_text = f"🚨 **Критический сток ({days_on_stock} дн.)!** Мы дороже рынка СПб на {diff:,} ₽. Рекомендация: Снизить цену до **{suggested_price:,} ₽**."
                 else:
-                    status_type = "КРИТИЧЕСКИЙ СТОК"
+                    status_style = "color: red; font-weight: bold;"
+                    status_text = "КРИТИЧЕСКИЙ СТОК"
                     rec_text = f"🚨 **Критический сток ({days_on_stock} дн.)!** Цена соответствует рынку. Рекомендация РОПу: Выделить скрытый бонус менеджерам +40 000 ₽."
             elif days_on_stock > 45:
                 suggested_price = max(comp_price, min_price)
                 if diff > 50000:
-                    status_type = "ЗАВИСАНИЕ"
+                    status_style = "color: orange; font-weight: bold;"
+                    status_text = "ЗАВИСАНИЕ"
                     rec_text = f"⚠️ **Зависание склада ({days_on_stock} дн.).** Дороже рынка на {diff:,} ₽. Рекомендуем выровнять прайс до **{suggested_price:,} ₽**."
                 else:
-                    status_type = "В РЫНКЕ"
+                    status_style = "color: green;"
+                    status_text = "В РЫНКЕ"
                     rec_text = f"🟢 Склад {days_on_stock} дн. Цена оптимальна относительно конкурентов СПб ({comp_price:,} ₽)."
             else:
-                status_type = "СВЕЖИЙ СТОК"
+                status_style = "color: gray;"
+                status_text = "СВЕЖИЙ СТОК"
                 rec_text = f"🟢 **Свежий склад ({days_on_stock} дн.).** Цена полностью соответствует рынку Санкт-Петербурга ({comp_price:,} ₽)."
         else:
-            status_type = "НЕТ ДАННЫХ"
+            status_style = "color: black;"
+            status_text = "НЕТ ДАННЫХ"
             rec_text = f"⚪ Модель принята. Требуется расширение базы."
             
-        recommendations.append(f"• **{brand_raw} {model_raw}** ➔ {rec_text}")
-        # Форматируем строку для PDF (чистый текст без markdown-звездочек)
-        pdf_text_lines.append(f"- {brand_raw} {model_raw} ({days_on_stock} дн., {current_price:,.0f} руб.) [{status_type}] -> {rec_text.replace('**', '').replace('🚨', '').replace('⚠️', '').replace('🟢', '')}")
+        st.markdown(f"• **{brand_raw} {model_raw}** ➔ {rec_text}")
+        
+        # Собираем красивую HTML таблицу для печати на русском языке
+        html_print_rows += f"""
+        <tr>
+            <td style="padding: 8px; border: 1px solid #ddd;"><b>{brand_raw} {model_raw}</b></td>
+            <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">{days_on_stock}</td>
+            <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">{current_price:,.0f} ₽</td>
+            <td style="padding: 8px; border: 1px solid #ddd; {status_style}">{status_text}</td>
+            <td style="padding: 8px; border: 1px solid #ddd;">{rec_text}</td>
+        </tr>
+        """
         
     if has_overaged:
         st.error("🚨 ВНИМАНИЕ ДИРЕКТОРА: НА СКЛАДЕ ОБНАРУЖЕНЫ АВТОМОБИЛИ С КРИТИЧЕСКИМ СРОКОМ ХРАНЕНИЯ (>100 ДНЕЙ)!")
         
-    for rec in recommendations:
-        st.markdown(rec)
-        
-    # --- СБОРКА И ГЕНЕРАЦИЯ PDF КОРРЕКТНЫМ СПОСОБОМ ---
+    # --- БЛОК ДЛЯ ИДЕАЛЬНОЙ ПЕЧАТИ ---
     st.write("---")
-    st.write("### 🖨️ Шаг 4: Экспорт отчета для утреннего совещания")
+    st.write("### 🖨️ Шаг 4: Версия для печати на утреннюю планерку")
     
-    if st.button("Сгенерировать официальный PDF-отчет"):
-        pdf = FPDF()
-        pdf.add_page()
+    # Собираем полноценную страницу для печати
+    html_report = f"""
+    <div style="font-family: Arial, sans-serif; padding: 20px; background-color: white; color: black; border: 2px solid #333; border-radius: 5px;">
+        <h2 style="text-align: center; margin-bottom: 5px;">ОФИЦИАЛЬНЫЙ ОТЧЕТ ДЛЯ УТРЕННЕЙ ПЛАНЕРКИ ДЦ</h2>
+        <p style="text-align: center; font-size: 14px; color: #555;">Дата: {datetime.now().strftime('%d.%m.%Y')} | Регион: Санкт-Петербург</p>
+        <hr style="border: 1px solid #333;">
         
-        # Используем стандартный безопасный шрифт FPDF, который гарантированно не упадет
-        pdf.set_font("Helvetica", size=12)
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px;">
+            <thead>
+                <tr style="background-color: #f2f2f2;">
+                    <th style="padding: 10px; border: 1px solid #333; text-align: left;">Автомобиль</th>
+                    <th style="padding: 10px; border: 1px solid #333; text-align: center;">Дней стока</th>
+                    <th style="padding: 10px; border: 1px solid #333; text-align: right;">Цена 1С</th>
+                    <th style="padding: 10px; border: 1px solid #333; text-align: left;">Статус</th>
+                    <th style="padding: 10px; border: 1px solid #333; text-align: left;">Решение ИИ-агента</th>
+                </tr>
+            </thead>
+            <tbody>
+                {html_print_rows}
+            </tbody>
+        </table>
         
-        # Шапка официального документа
-        pdf.cell(200, 10, txt="RAPORT FOR MORNING MEETING / ANALYTICS DEPT", ln=True, align='C')
-        pdf.cell(200, 10, txt=f"Date: {datetime.now().strftime('%d.%m.%Y')} | Region: St. Petersburg", ln=True, align='C')
-        pdf.cell(200, 10, txt="========================================================", ln=True, align='C')
-        pdf.ln(10)
-        
-        # Переводим кириллицу в безопасную транслитерацию для Helvetica, чтобы не было кракозябр
-        def trans(text):
-            rules = {"А":"A","Б":"B","В":"V","Г":"G","Д":"D","Е":"E","Ё":"E","Ж":"Zh","З":"Z","И":"I","Й":"Y","К":"K","Л":"L","М":"M","Н":"N","О":"O","П":"P","Р":"R","С":"S","Т":"T","У":"U","Ф":"F","Х":"Kh","Ц":"Ts","Ч":"Ch","Ш":"Sh","Щ":"Shch","Ъ":"","Ы":"Y","Ь":"","Э":"E","Ю":"Yu","Я":"Ya","а":"a","б":"b","в":"v","г":"g","д":"d","е":"e","ё":"e","ж":"zh","з":"z","и":"i","й":"y","к":"k","л":"l","м":"m","н":"n","о":"o","п":"p","р":"r","с":"s","т":"t","у":"u","ф":"f","х":"kh","ц":"ts","ч":"ch","ш":"sh","щ":"shch","ъ":"","ы":"y","ь":"","э":"e","ю":"yu","я":"ya","₽":"руб","«":'"',"»":'"',"ё":"e"}
-            return "".join(rules.get(c, c) for c in text)
+        <br><br><br>
+        <p style="font-size: 14px;"><b>Резолюция Директора ДЦ:</b> ____________________________________________________________________</p>
+        <p style="font-size: 12px; color: #777; text-align: right; margin-top: 30px;">Сформировано автономным ИИ-агентом</p>
+    </div>
+    """
+    
+    # Показываем красивый бланк прямо на сайте
+    st.write("👉 Нажмите сочетание клавиш **Ctrl + P** (или **Cmd + P** на Mac) прямо на этой странице браузера, чтобы отправить бланк ниже на принтер или сохранить в PDF.")
+    st.components.v1.html(html_report, height=600, scrolling=True)
 
-        if has_overaged:
-            pdf.cell(200, 10, txt="!!! WARNING: CRITICAL OVERAGED STOCK DETECTED (>100 DAYS) !!!", ln=True)
-            pdf.ln(5)
-            
-        for line in pdf_text_lines:
-            # Записываем каждую рекомендацию безопасной строкой
-            pdf.multi_cell(0, 10, txt=trans(line))
-            
-        pdf.ln(15)
-        pdf.cell(200, 10, txt="Director's resolution: ___________________________", ln=True)
-        
-        # Превращаем документ в байты для кнопки скачивания
-        pdf_bytes = pdf.output(dest='S')
-        
-        st.download_button(
-            label="📥 Скачать готовый PDF для печати",
-            data=pdf_bytes,
-            file_name=f"Сводка_Склад_СПб_{datetime.now().strftime('%d_%m_%Y')}.pdf",
-            mime="application/pdf"
-        )
 else:
     st.info("Пожалуйста, загрузите ваш Excel-файл для точного коммерческого анализа рынка Санкт-Петербурга.")
