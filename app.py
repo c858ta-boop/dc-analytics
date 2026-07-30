@@ -118,16 +118,19 @@ if uploaded_file is not None:
                     rec_text = f"🟢 **Объявление Автопродикс в сети.** Цена оптимальна и полностью выдерживает конкуренцию на Авито СПб ({comp_price:,} ₽)."
             else:
                 status_text, status_style = "НЕТ ДАННЫХ", "color: black;"
-                rec_text = f"⚪ Модель распознана на складе. Ожидание синхронизации цен."
+                rec_text = f"⚪ Модель {brand_raw} {model_raw} распознана на складе. Ожидание расширения базы цен конкурентов."
                 
         st.markdown(f"• **{brand_raw} {model_raw}** ➔ {rec_text}")
+        
+        # ЗАЩИТА ОТ ОШИБКИ: Безопасное форматирование цены конкурентов
+        comp_price_display = f"{comp_price:,.0f} ₽" if comp_price else "—"
         
         row_html = f"""
         <tr>
             <td style="padding: 8px; border: 1px solid #ddd;"><b>{brand_raw} {model_raw}</b></td>
             <td style="padding: 8px; border: 1px solid #ddd; text-align: center;">{days_on_stock}</td>
             <td style="padding: 8px; border: 1px solid #ddd; text-align: right;">{current_price:,.0f} ₽</td>
-            <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: blue; font-weight: bold;">{comp_price:,.0f} ₽</td>
+            <td style="padding: 8px; border: 1px solid #ddd; text-align: right; color: blue; font-weight: bold;">{comp_price_display}</td>
             <td style="padding: 8px; border: 1px solid #ddd; {status_style}">{status_text}</td>
             <td style="padding: 8px; border: 1px solid #ddd;">{rec_text}</td>
         </tr>
@@ -172,5 +175,3 @@ if uploaded_file is not None:
         </div>
         """
 
-    tab1, tab2, tab3 = st.tabs(["📋 Лист РОПа CHANGAN", "📋 Лист РОПа GAC / UMO", "📋 Лист РОПа VOLGA"])
-    with tab1: st.components.v1.html(make_html_report("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ CHANGAN (АВТОПРОДИКС)", rop_groups["CHANGAN"]), height=500, scrolling=True)
