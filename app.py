@@ -4,7 +4,7 @@ from datetime import datetime
 
 st.set_page_config(page_title="Автопродикс: Живой Авито-Аудит", layout="wide")
 
-st.title("🚗 ИИ-Агент: Динамический audit витрины ГК «Автопродикс» на Авито СПб")
+st.title("🚗 ИИ-Агент: Динамический аудит витрины ГК «Автопродикс» на Авито СПб")
 st.subheader("Сравнение цен 'ОТ...' по конкретным комплектациям и ГОДУ ВЫПУСКА среди дилеров Санкт-Петербурга")
 
 def get_live_market_classified_data_with_year(brand, model, rrc_price, year):
@@ -77,7 +77,6 @@ def generate_html_report_text(manager_title, data_list):
             </tbody>
         </table>
         <br><br>
-        <p><b>Указание Директора:</b> Отработать отклонения от рынка в течение 24 часов.</p>
         <script>window.onload = function() {{ window.print(); }}</script>
     </body>
     </html>
@@ -211,3 +210,5 @@ if uploaded_file is not None:
             st.table(pd.DataFrame(volga_data))
             html_report3 = generate_html_report_text("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ VOLGA", volga_data)
             st.download_button(
+                label="📥 Скачать печатную форму (Volga)",
+                data=html_report3,
