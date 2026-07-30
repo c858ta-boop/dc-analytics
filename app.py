@@ -54,7 +54,6 @@ if uploaded_file is not None:
     
     st.write("### 🤖 Управленческие указания по итогам сквозного аудита витрины:")
     
-    # Резервуары для хранения данных в стандартном формате таблиц Streamlit
     changan_data = []
     gac_umo_data = []
     volga_data = []
@@ -125,7 +124,6 @@ if uploaded_file is not None:
                 
         st.markdown(f"• **{brand_raw} {model_raw}** ➔ {rec_text}")
         
-        # Создаем плоский словарь данных для стандартных таблиц Streamlit
         car_info = {
             "Автомобиль": f"{brand_raw} {model_raw}",
             "Дней стока": days_on_stock,
@@ -135,9 +133,9 @@ if uploaded_file is not None:
             "Указание Директора РОПу": rec_text
         }
         
-        if brand == "VOLGA": rop_groups = "VOLGA"; volga_data.append(car_info)
-        elif brand in ["GAC", "UMO"]: rop_groups = "GAC_UMO"; gac_umo_data.append(car_info)
-        else: rop_groups = "CHANGAN"; changan_data.append(car_info)
+        if brand == "VOLGA": volga_data.append(car_info)
+        elif brand in ["GAC", "UMO"]: gac_umo_data.append(car_info)
+        else: changan_data.append(car_info)
             
     if has_overaged:
         st.error("🚨 ВНИМАНИЕ ДИРЕКТОРА: НА СКЛАДЕ ОБНАРУЖЕНЫ АВТОМОБИЛИ С КРИТИЧЕСКИМ СРОКОМ ХРАНЕНИЯ (>100 ДНЕЙ)!")
@@ -146,33 +144,29 @@ if uploaded_file is not None:
     st.write("### 🖨️ Шаг 4: Выдача индивидуальных заданий РОПам")
     st.info("Перейдите на нужную вкладку ниже. Перед вами откроется бланк распоряжения ГК «Автопродикс».")
     
-    # Создание вкладок на чистом коде Streamlit, работающих мгновенно
     tab1, tab2, tab3 = st.tabs(["📋 Лист РОПа CHANGAN", "📋 Лист РОПа GAC / UMO", "📋 Лист РОПа VOLGA"])
     
     with tab1:
-        st.subheader("РАСПОРЯЖЕНИЕ ПО ИТОГАМ МОНИТОРИНГА ВИТРИНЫ ГК АВТОПРОДИКС")
+        st.subheader("Мониторинг цен продажи Автопродикс на Авито")
         st.write(f"**ПОЛУЧАТЕЛЬ:** РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ CHANGAN  \n**Дата:** {datetime.now().strftime('%d.%m.%Y')} | Аудит выгрузки Авито Санкт-Петербург")
         if changan_data:
             st.table(pd.DataFrame(changan_data))
-            st.write("**Срок исполнения РОПом:** 24 часа. Отчитаться об исправлении ошибок и переоценке.  \n**Подпись Директора ГК Автопродикс:** ___________________________")
         else:
             st.info("В загруженном файле нет автомобилей для данного отдела.")
         
     with tab2:
-        st.subheader("РАСПОРЯЖЕНИЕ ПО ИТОГАМ МОНИТОРИНГА ВИТРИНЫ ГК АВТОПРОДИКС")
+        st.subheader("Мониторинг цен продажи Автопродикс на Авито")
         st.write(f"**ПОЛУЧАТЕЛЬ:** РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ GAC / UMO  \n**Дата:** {datetime.now().strftime('%d.%m.%Y')} | Аудит выгрузки Авито Санкт-Петербург")
         if gac_umo_data:
             st.table(pd.DataFrame(gac_umo_data))
-            st.write("**Срок исполнения РОПом:** 24 часа. Отчитаться об исправлении ошибок и переоценке.  \n**Подпись Директора ГК Автопродикс:** ___________________________")
         else:
             st.info("В загруженном файле нет автомобилей для данного отдела.")
         
     with tab3:
-        st.subheader("РАСПОРЯЖЕНИЕ ПО ИТОГАМ МОНИТОРИНГА ВИТРИНЫ ГК АВТОПРОДИКС")
+        st.subheader("Мониторинг цен продажи Автопродикс на Авито")
         st.write(f"**ПОЛУЧАТЕЛЬ:** РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ VOLGA  \n**Дата:** {datetime.now().strftime('%d.%m.%Y')} | Аудит выгрузки Авито Санкт-Петербург")
         if volga_data:
             st.table(pd.DataFrame(volga_data))
-            st.write("**Срок исполнения РОПом:** 24 часа. Отчитаться об исправлении ошибок и переоценке.  \n**Подпись Директора ГК Автопродикс:** ___________________________")
         else:
             st.info("В загруженном файле нет автомобилей для данного отдела.")
 else:
