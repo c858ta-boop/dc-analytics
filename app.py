@@ -63,18 +63,18 @@ if uploaded_file is not None:
         brand_raw = str(row.get('Бренд', '')).upper().strip()
         model_raw = str(row.get('Модель', '')).upper().strip()
         
-        brand = brand_raw
+        brand = "CHANGAN"  # По умолчанию
         model = None
         
-        # Надежное определение бренда (включая русское написание ВОЛГА)
-        if "VOLGA" in brand_raw or "ВОЛГА" in brand_raw:
+        # СУПЕР-НАДЕЖНОЕ КИРИЛЛИЧЕСКОЕ И СТРОЧНОЕ РАСПОЗНАВАНИЕ БРЕНДОВ
+        if "VOLGA" in brand_raw or "ВОЛГА" in brand_raw or "VOL" in brand_raw:
             brand = "VOLGA"
-        elif "CHANGAN" in brand_raw or "ЧАНГАН" in brand_raw:
-            brand = "CHANGAN"
         elif "GAC" in brand_raw or "ГАК" in brand_raw:
             brand = "GAC"
         elif "UMO" in brand_raw or "УМО" in brand_raw:
             brand = "UMO"
+        elif "CHANGAN" in brand_raw or "ЧАНГАН" in brand_raw or "CHAN" in brand_raw:
+            brand = "CHANGAN"
                 
         if brand in MARKET_DATABASE_SPB:
             model_clean = model_raw.replace(" ", "").replace("-", "")
@@ -188,4 +188,3 @@ if uploaded_file is not None:
         st.components.v1.html(make_html_report("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ GAC / UMO", rop_groups["GAC_UMO"]), height=500, scrolling=True)
         
     with tab3:
-        st.write("🖨️ *Для печати задания по Volga нажмите **Ctrl+P** (или **Cmd+P** на Mac)*")
