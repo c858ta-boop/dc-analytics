@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import base64
 
 st.set_page_config(page_title="Автопродикс: Живой Авито-Аудит", layout="wide")
 
@@ -28,10 +27,8 @@ def get_live_market_classified_data_with_year(brand, model, rrc_price, year):
         
     return autoprodix_min_price, competitor_min_price
 
-# Функция генерации PDF через HTML-печать (100% защита от ошибок кодировки)
-def create_pdf_download_link(manager_title, data_list, filename):
-    if not data_list:
-        return ""
+# Функция генерации чистого печатного HTML-текста (без сбоев кодировки)
+def generate_html_report_text(manager_title, data_list):
     df_pdf = pd.DataFrame(data_list)
     table_rows = ""
     for _, row in df_pdf.iterrows():
@@ -47,10 +44,11 @@ def create_pdf_download_link(manager_title, data_list, filename):
         </tr>
         """
     
-    html_content = f"""
+    html_content = f"""<!DOCTYPE html>
     <html>
     <head>
         <meta charset='utf-8'>
+        <title>Мониторинг Автопродикс</title>
         <style>
             body {{ font-family: 'Arial', sans-serif; padding: 20px; color: black; background: white; }}
             table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }}
@@ -79,13 +77,12 @@ def create_pdf_download_link(manager_title, data_list, filename):
             </tbody>
         </table>
         <br><br>
+        <p><b>Указание Директора:</b> Отработать отклонения от рынка в течение 24 часов.</p>
         <script>window.onload = function() {{ window.print(); }}</script>
     </body>
     </html>
     """
-    
-    b64 = base64.b64encode(html_content.encode('utf-8')).decode()
-    return f'<a href="data:text/html;base64,{b64}" download="{filename}.html" style="text-decoration:none;"><button style="background-color:#0066cc; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold;">📥 Скачать PDF-отчет для печати</button></a>'
+    return html_content
 
 uploaded_file = st.file_uploader("Шаг 1: Загрузите Excel-файл выгрузки склада 1С", type=["xlsx", "xls"])
 
@@ -106,7 +103,6 @@ if uploaded_file is not None:
     df = df.rename(columns=rename_dict)
     
     changan_data, gac_umo_data, volga_data = [], [], []
-    has_overaged = False
     
     for index, row in df.iterrows():
         row_full_text = " ".join([str(val) for val in row.values]).upper()
@@ -156,7 +152,6 @@ if uploaded_file is not None:
             if diff > 20000:
                 status_text = "ЗАВЫШЕНА ЦЕНА ⚠️"
                 rec_text = f"Снизить цену в объявлении до {comp_price:,} руб."
-                if days_on_stock >= 100: has_overaged = True
             elif diff < -20000:
                 status_text = "ЛИДЕР ВЫДАЧИ 🟢"
                 rec_text = "Мы дешевле конкурентов. Цена оптимальна."
@@ -185,22 +180,34 @@ if uploaded_file is not None:
     tab1, tab2, tab3 = st.tabs(["📋 Лист РОПа CHANGAN / DEEPAL", "📋 Лист РОПа GAC / UMO", "📋 Лист РОПа VOLGA"])
     
     with tab1:
-        st.subheader("Мониторинг цен продажи Автопродикс на Авито (Бренд: CHANGAN / DEEPAL)")
+        st.subheader("Мониторинг цен продажи Автопродикс на Авито (CHANGAN / DEEPAL)")
         if changan_data:
             st.table(pd.DataFrame(changan_data))
-            lnk1 = create_pdf_download_link("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ CHANGAN / DEEPAL", changan_data, "Otchet_Changan_Avtoprodix")
-            st.markdown(lnk1, unsafe_allow_bytes=True, unsafe_allow_html=True)
+            html_report1 = generate_html_report_text("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ CHANGAN / DEEPAL", changan_data)
+            st.download_button(
+                label="📥 Скачать печатную форму (Changan)",
+                data=html_report1,
+                file_name=f"Report_Changan_{datetime.now().strftime('%d_%m_%Y')}.html",
+                mime="text/html"
+            )
         else: st.info("Нет автомобилей для данного отдела.")
         
     with tab2:
-        st.subheader("Мониторинг цен продажи Автопродикс на Авито (Бренд: GAC / UMO)")
+        st.subheader("Мониторинг цен продажи Автопродикс на Авито (GAC / UMO)")
         if gac_umo_data:
             st.table(pd.DataFrame(gac_umo_data))
-            lnk2 = create_pdf_download_link("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ GAC / UMO", gac_umo_data, "Otchet_GAC_UMO_Avtoprodix")
-            st.markdown(lnk2, unsafe_allow_bytes=True, unsafe_allow_html=True)
+            html_report2 = generate_html_report_text("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ GAC / UMO", gac_umo_data)
+            st.download_button(
+                label="📥 Скачать печатную форму (GAC / UMO)",
+                data=html_report2,
+                file_name=f"Report_GAC_UMO_{datetime.now().strftime('%d_%m_%Y')}.html",
+                mime="text/html"
+            )
         else: st.info("Нет автомобилей для данного отдела.")
         
     with tab3:
-        st.subheader("Мониторинг цен продажи Автопродикс на Авито (Бренд: VOLGA)")
+        st.subheader("Мониторинг цен продажи Автопродикс на Авито (VOLGA)")
         if volga_data:
             st.table(pd.DataFrame(volga_data))
+            html_report3 = generate_html_report_text("РУКОВОДИТЕЛЮ ОТДЕЛА ПРОДАЖ VOLGA", volga_data)
+            st.download_button(
