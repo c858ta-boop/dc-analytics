@@ -54,7 +54,6 @@ if uploaded_file is not None:
     
     st.write("### 🤖 Управленческие указания по итогам сквозного аудита витрины:")
     
-    # Жесткое и правильное создание словаря групп РОПов
     rop_groups = {"CHANGAN": [], "GAC_UMO": [], "VOLGA": []}
     has_overaged = False
     
@@ -164,7 +163,7 @@ if uploaded_file is not None:
                 <thead>
                     <tr style='background-color: #f2f2f2;'>
                         <th style='padding: 8px; border: 1px solid #333; text-align: left;'>Автомобиль</th>
-                        <th style='padding: 8px; border: 1px solid #333; text-align: center;">Дней стока</th>
+                        <th style='padding: 8px; border: 1px solid #333; text-align: center;'>Дней стока</th>
                         <th style='padding: 8px; border: 1px solid #333; text-align: right;'>Цена 1С</th>
                         <th style='padding: 8px; border: 1px solid #333; text-align: right;'>Рынок Авито СПб</th>
                         <th style='padding: 8px; border: 1px solid #333; text-align: left;'>Статус витрины Автопродикс</th>
